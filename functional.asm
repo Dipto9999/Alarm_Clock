@@ -63,10 +63,7 @@ org 0x002B
 ; In the 8051 we can define direct access variables starting at location 0x30 up to location 0x7F
 dseg at 0x30
 Count1ms:     ds 2 ; Used to determine when half second has passed
-
-BCD_Hours:  ds 1
-BCD_Minutes:  ds 1
-BCD_Seconds:  ds 1
+BCD_Seconds:  ds 1 ; The BCD counter incrememted in the ISR and displayed in the main loop
 
 ; In the 8051 we have variables that are 1-bit in size.  We can use the setb, clr, jb, and jnb
 ; instructions with these variables.  This is how you define a 1-bit variable:
@@ -88,7 +85,7 @@ $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
 ;                     1234567890123456    <- This helps determine the location of the counter
-Initial_Message:  db 'Time xx:xx:xx', 0, 0, 0
+Initial_Message:  db 'Time 12:00:00', 0
 
 ;---------------------------------;
 ; Routine to initialize the ISR   ;
@@ -181,11 +178,11 @@ Timer2_ISR:
 Inc_Done:
 	; Check if half second has passed
 	mov a, Count1ms+0
-	cjne a, #low(1000), Timer2_ISR_Done ; Warning: this instruction changes the carry flag!
+	cjne a, #low(1000), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
-	cjne a, #high(1000), Timer2_ISR_Done
+	cjne a, #high(1000), Timer2_ISR_done
 
-	; 1000 milliseconds have passed.  Set a flag so the main program knows
+	; 500 milliBCD_Seconds have passed.  Set a flag so the main program knows
 	setb one_sec_flag ; Let the main program know half second had passed
 	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
 	; Reset to zero the milli-BCD_Seconds counter, it is a 16-bit variable
@@ -195,29 +192,13 @@ Inc_Done:
 
 	mov a, BCD_Seconds
 	add a, #1
-	da a
+	da a ; Decimal adjust instruction.  Check datasheet for more details!
 	mov BCD_Seconds, a
 
-	cjne a, #0x60, Timer2_ISR_Done
+	cjne a, #0x60, Timer2_ISR_done
 Next_Minute:
 	mov BCD_Seconds, #0x00
-
-	mov a, BCD_Minutes
-	add a, #1
-	da a
-	mov BCD_Minutes, a
-	cjne a, #0x60, Timer2_ISR_Done
-Next_Hour:
-	mov BCD_Minutes, #0x00
-
-	mov a, BCD_Hours
-	add a, #1
-	da a
-	mov BCD_Hours, a
-	cjne a, #0x24, Timer2_ISR_Done
-Next_Day:
-	mov BCD_Hours, #0x00
-Timer2_ISR_Done:
+Timer2_ISR_done:
 	pop psw
 	pop acc
 	reti
@@ -245,9 +226,6 @@ main:
 	Set_Cursor(1, 1)
     Send_Constant_String(#Initial_Message)
     setb one_sec_flag
-
-	mov BCD_Hours, #0
-	mov BCD_Minutes, #0
 	mov BCD_Seconds, #0
 
 	; After initialization the program stays in this 'forever' loop
@@ -269,14 +247,9 @@ loop:
 loop_a:
 	jnb one_sec_flag, loop
 loop_b:
-    clr one_sec_flag
-
-	Set_Cursor(1, 6)
-	Display_BCD(BCD_Hours)
-	Set_Cursor(1, 9)
-	Display_BCD(BCD_Minutes)
-	Set_Cursor(1, 12)
-	Display_BCD(BCD_Seconds)
+    clr one_sec_flag ; We clear this flag in the main loop, but it is set in the ISR for timer 2
+	Set_Cursor(1, 12)     ; the place in the LCD where we want the BCD counter value
+	Display_BCD(BCD_Seconds) ; This macro is also in 'LCD_4bit.inc'
     ljmp loop
 END
 `

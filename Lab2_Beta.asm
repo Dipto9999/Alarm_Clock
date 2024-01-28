@@ -48,8 +48,7 @@ org 0x0003
 
 ; Timer/Counter 0 overflow interrupt vector
 org 0x000B
-	; ljmp Timer0_ISR
-	reti
+	ljmp Timer0_ISR
 
 ; External interrupt 1 vector (not used in this code)
 org 0x0013
@@ -65,26 +64,25 @@ org 0x0023
 
 ; Timer/Counter 2 overflow interrupt vector
 org 0x002B
-	reti
-	; ljmp Timer2_ISR
+	ljmp Timer2_ISR
 
 ; In the 8051 we can define direct access variables starting at location 0x30 up to location 0x7F
 dseg at 0x30
 Counter_1ms:     ds 2 ; Used to determine when 1s has passed
 
-Curr_Hours: ds 0
+Curr_Hours: ds 1
 Display_BCD_Hours:  ds 1 ; BCD Hours Displayed on LCD
-Curr_Mins: ds 0
+Curr_Mins: ds 1
 Display_BCD_Mins:  ds 1 ; BCD Minutes Displayed on LCD
-Curr_Secs: ds 0
+Curr_Secs: ds 1
 Display_BCD_Secs:  ds 1 ; BCD Seconds Displayed on LCD
 
 ; In the 8051 we have variables that are 1-bit in size.  We can use the setb, clr, jb, and jnb
 ; instructions with these variables.  This is how you define a 1-bit variable:
 bseg
-one_second_flag: dbit 1 ; Set Bit In ISR After Every 1000ms
-alarm_toggled_flag: dbit 1 ; Set Bit in ISR When Alarm is Toggled
-alarm_enabled_flag: dbit 1 ; Set Bit in ISR When Alarm is Enabled
+One_Second_Flag: dbit 1 ; Set Bit In ISR After Every 1000ms
+Alarm_Mode_Flag: dbit 1 ; Set Bit in ISR When Alarm Mode is Toggled
+Alarm_Enabled_Flag: dbit 1 ; Set Bit in ISR When Alarm is Enabled
 
 cseg
 ; Hardware Wiring for LCD
@@ -100,8 +98,9 @@ $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
-DISPLAY_TIME_INIT:  db 'TIME 12:00:00AM'
-DISPLAY_ALARM_INIT: db 'ALRM 12:00:00PM'
+;                     1234567890123456    <- This helps determine the location of the counter
+DISPLAY_TIME_INIT:  db 'TIME 12:00:00', 0
+DISPLAY_ALARM_INIT: db 'ALRM 12:00:00', 0
 
 ;---------------------------------;
 ; Routine to initialize the ISR   ;
@@ -127,11 +126,35 @@ Timer0_Init:
 ;---------------------------------;
 Timer0_ISR:
 	; Timer 0 Doesn't Have 16-Bit Auto-Reload.
+    PUSH ACC
+	PUSH PSW
+
+	; Check if Seconds Counter is Between 30 and 40
+	; Generate a 2kHz Square Wave at Pin ALARM_OUT.
+	MOV A, Display_BCD_Secs
+	SUBB A, #0x30
+	JC No_Sound
+
+	MOV A, Display_BCD_Secs
+	SUBB A, #0x40
+	JNC No_Sound
+Generate_Sound :
+	SETB Alarm_Enabled_Flag
+
 	CLR TR0
 	MOV TH0, #HIGH(TIMER0_RELOAD)
 	MOV TL0, #LOW(TIMER0_RELOAD)
 	SETB TR0
-	CPL ALARM_OUT
+	CPL ALARM_OUT ; Connect speaker the pin assigned to 'ALARM_OUT'!
+	SJMP Timer0_ISR_Done
+No_Sound:
+	CLR Alarm_Enabled_Flag
+	MOV TH0, #HIGH(TIMER0_RELOAD)
+	MOV TL0, #LOW(TIMER0_RELOAD)
+Timer0_ISR_Done:
+	POP PSW
+	POP ACC
+
 	RETI
 
 ;---------------------------------;
@@ -178,36 +201,24 @@ Check_1000ms:
 	MOV A, Counter_1ms+1
 	CJNE A, #HIGH(1000), Timer2_ISR_Done ; Note : CJNE Changes the Carry Flag
 Inc_Time:
-	SETB one_second_flag ; Let Program Know 1s Has Passed
+	SETB One_Second_Flag ; Let Program Know 1s Has Passed
 Reset_ms_Counter:
 	; Reset ms Counter. It is a 16-bit variable made with two 8-bit parts
 	CLR A
 	mov Counter_1ms+0, A ; Reset Low 8-bits
-	mov Counter_1ms+1, A ; Reset High 8-bits
+	JNZ Inc_Seconds
+	mov Counter_1ms+1, A ; Reset High 8-bits If Low 8-bits Overflow
 Inc_Seconds:
 	; Increment Seconds Counter
 	INC Curr_Secs
-Check_Alarm:
-	; Check if Seconds Counter is Between 30 and 40
-	; Generate a 2kHz Square Wave at Pin ALARM_OUT.
-	MOV A, #40
-	SUBB A, Curr_Secs
-	JZ Disable_Alarm
-
-	MOV A, Curr_Secs
-	SUBB A, #30
-	JC Disable_Alarm
-Enable_Alarm:
-	SETB alarm_enabled_flag
+	JNB Alarm_Enabled_Flag, Inc_Seconds_Continue
+BEEP:
 	CPL TR0 ; Creates a Beep-Silence-Beep-Silence Sound
-	SJMP Inc_Seconds_Continue
-Disable_Alarm:
-	CLR alarm_enabled_flag
 Inc_Seconds_Continue:
 	MOV A, Curr_Secs
 	DA A ; Decimal Adjust
 	MOV Display_BCD_Secs, A
-	CJNE a, #0x60, Timer2_ISR_Done
+	CJNE A, #0x60, Timer2_ISR_Done
 Reset_Seconds:
 	MOV Curr_Secs, #0x00 ; Reset Seconds Counter
 	MOV Display_BCD_Secs, #0x00 ; Reset Seconds Display
@@ -226,21 +237,10 @@ Inc_Hours:
 	INC Curr_Hours
 	MOV A, Curr_Hours
 	DA A ; Decimal Adjust
-	CJNE A, #0x24, Inc_Hours_AM_PM
+	CJNE A, #0x24, Inc_Hours_Done
 Reset_Hours:
-	; Reset Hours Counter
 	MOV Curr_Hours, #0x00 ; Reset Hours Counter
-	MOV Display_BCD_Hours, #0x12 ; Reset Hours Display
-	SJMP Inc_Hours_Done
-Inc_Hours_AM_PM:
-	; Toggle AM/PM
-	MOV A, Curr_Hours
-	SUBB A, #0x11
-	JNC Inc_Hours_Done
-Inc_Hours_PM:
-	SUBB A, #0x12
-	JNZ Inc_Hours_Done
-	MOV A, #0x12 ; Display Noon
+	MOV Display_BCD_Hours, #0x00 ; Reset Hours Display
 Inc_Hours_Done:
 	MOV Display_BCD_Hours, A
 	SJMP Timer2_ISR_Done
@@ -275,9 +275,9 @@ Main:
 	MOV Curr_Mins, #0x00
 	MOV Curr_Secs, #0x00
 
-	MOV Display_BCD_Hours, Curr_Hours
-	MOV Display_BCD_Mins, Curr_Mins
-	MOV Display_BCD_Secs, Curr_Secs
+	MOV Display_BCD_Hours, #12
+	MOV Display_BCD_Mins, #0
+	MOV Display_BCD_Secs, #0
 
 	; Initialize the LCD Time Display
 	Set_Cursor(1, 1)
@@ -287,57 +287,34 @@ Main:
 	Set_Cursor(2, 1)
     Send_Constant_String(#DISPLAY_ALARM_INIT)
 
-    SETB one_second_flag
+    SETB One_Second_Flag
 Time_Loop:
-	sjmp Time_Loop
+	SJMP Time_Loop
 	SJMP Check_Set
 Check_Set :
-	JB SET_BUTTON, Continue_Loop  ; Check if Set Button Pressed
-	Wait_Milli_Seconds(#50)	; Wait 50ms
-	JB SET_BUTTON, Continue_Loop  ; Check if Set Button Pressed
-	JNB SET_BUTTON, $ ; Continue if Set Button Pressed
-	; A valid press of the 'CLEAR' button has been detected, reset the BCD counter.
-	; But first stop timer 2 and reset the ms counter, to resync everything.
-	clr TR2                 ; S	top timer 2
-	clr a
-	mov Counter_1ms+0, a
-	mov Counter_1ms+1, a
-	; Now clear the BCD Seconds counter
-	mov Display_BCD_Secs, a
-	setb TR2 ; Start Timer 2
-	sjmp Display_LCD_Time ; Display New Time
-Continue_Loop:
-	JNB one_second_flag, Time_Loop
+	CLR TR2 ; Stop Timer 2
+	CLR A
+	MOV Counter_1ms+0, A
+	MOV Counter_1ms+1, A
+	MOV Display_BCD_Secs, a
+	SETB TR2 ; Start Timer 2
+
+	SJMP Display_LCD_Time ; Display New Time
 Display_LCD_Time:
-    CLR one_second_flag ; Flag is Set in Timer 2 ISR and Cleared in Main Loop.
+    CLR One_Second_Flag ; Flag is Set in Timer 2 ISR and Cleared in Main Loop.
 
 	; Display Hours
 	Set_Cursor(1, 7)
-	; Display_BCD(Display_BCD_Hours)
-	; Display_BCD(Curr_Hours)
+	Display_BCD(Display_BCD_Hours)
 
 	; Display Minutes
 	Set_Cursor(1, 10)
-	; Display_BCD(Display_BCD_Mins)
-	; Display_BCD(Curr_Mins)
+	Display_BCD(Display_BCD_Mins)
 
 	; Display Seconds
 	Set_Cursor(1, 13)
-	; Display_BCD(Display_BCD_Secs)
-	; Display_BCD(Curr_Secs)
+	Display_BCD(Display_BCD_Secs)
 
-	; Display AM/PM
-	Set_Cursor(1, 15)
-
-	; Check if AM/PM
-	MOV A, Curr_Hours
-	SUBB A, #0x11
-	JNC Display_PM
-Display_AM:
-	; Send_Constant_String(#'AM')
-	LJMP Time_Loop
-Display_PM:
-	; Send_Constant_String(#'PM')
     LJMP Time_Loop
 END
 `
