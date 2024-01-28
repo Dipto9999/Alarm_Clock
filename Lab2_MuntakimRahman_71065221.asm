@@ -71,7 +71,8 @@ BCD_Seconds:  ds 1
 ; In the 8051 we have variables that are 1-bit in size.  We can use the setb, clr, jb, and jnb
 ; instructions with these variables.  This is how you define a 1-bit variable:
 bseg
-one_sec_flag: dbit 1 ; Set to one in the ISR every time 500 ms had passed
+one_sec_flag: dbit 1 ; Set Bit In ISR After Every 1000ms
+alarm_enabled_flag: dbit 1 ; Set Bit in ISR When Alarm is Enabled
 
 cseg
 ; These 'equ' must match the hardware wiring
@@ -124,7 +125,9 @@ Timer0_ISR:
 	mov a, BCD_Seconds
 	subb a, #0x40
 	jnc No_Sound
-Generate_Sound :
+Generate_Sound:
+	setb alarm_enabled_flag
+
 	clr TR0
 	mov TH0, #high(TIMER0_RELOAD)
 	mov TL0, #low(TIMER0_RELOAD)
@@ -132,6 +135,7 @@ Generate_Sound :
 	cpl SOUND_OUT ; Connect speaker the pin assigned to 'SOUND_OUT'!
 	sjmp Timer0_ISR_Done
 No_Sound:
+	clr alarm_enabled_flag
 	mov TH0, #high(TIMER0_RELOAD)
 	mov TL0, #low(TIMER0_RELOAD)
 Timer0_ISR_Done:
@@ -175,10 +179,10 @@ Timer2_ISR:
 	; Increment the 16-bit one mili second counter
 	inc Count1ms+0    ; Increment the low 8-bits first
 	mov a, Count1ms+0 ; If the low 8-bits overflow, then increment high 8-bits
-	jnz Inc_Done
+	jnz Inc_BCD
 	inc Count1ms+1
 
-Inc_Done:
+Inc_BCD:
 	; Check if half second has passed
 	mov a, Count1ms+0
 	cjne a, #low(1000), Timer2_ISR_Done ; Warning: this instruction changes the carry flag!
@@ -187,19 +191,21 @@ Inc_Done:
 
 	; 1000 milliseconds have passed.  Set a flag so the main program knows
 	setb one_sec_flag ; Let the main program know half second had passed
+	jnb alarm_enabled_flag, CONTINUE_ISR
+BEEP:
 	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
+CONTINUE_ISR:
 	; Reset to zero the milli-BCD_Seconds counter, it is a 16-bit variable
 	clr a
 	mov Count1ms+0, a
 	mov Count1ms+1, a
-
+Inc_Second:
 	mov a, BCD_Seconds
 	add a, #1
 	da a
 	mov BCD_Seconds, a
-
 	cjne a, #0x60, Timer2_ISR_Done
-Next_Minute:
+Inc_Minute:
 	mov BCD_Seconds, #0x00
 
 	mov a, BCD_Minutes
@@ -207,7 +213,7 @@ Next_Minute:
 	da a
 	mov BCD_Minutes, a
 	cjne a, #0x60, Timer2_ISR_Done
-Next_Hour:
+Inc_Hour:
 	mov BCD_Minutes, #0x00
 
 	mov a, BCD_Hours
@@ -215,7 +221,7 @@ Next_Hour:
 	da a
 	mov BCD_Hours, a
 	cjne a, #0x24, Timer2_ISR_Done
-Next_Day:
+Inc_Day:
 	mov BCD_Hours, #0x00
 Timer2_ISR_Done:
 	pop psw
@@ -246,9 +252,17 @@ main:
     Send_Constant_String(#Initial_Message)
     setb one_sec_flag
 
-	mov BCD_Hours, #0
-	mov BCD_Minutes, #0
-	mov BCD_Seconds, #0
+	mov a, #0x23
+	da a
+	mov BCD_Hours, a
+
+	mov a, #0x58
+	da a
+	mov BCD_Minutes, a
+
+	mov a, #0x55
+	da a
+	mov BCD_Seconds, a
 
 	; After initialization the program stays in this 'forever' loop
 loop:
