@@ -1,8 +1,6 @@
-; ISR_example.asm: a) Increments/decrements a BCD variable every half second using
-; an ISR for timer 2; b) Generates a 2kHz square wave at pin P1.7 using
-; an ISR for timer 0; and c) in the 'main' Toggle_Mode_Check it displays the variable
-; incremented/decremented using the ISR for timer 2 on the LCD.  Also resets it to
-; zero if the 'CLEAR' push button connected to P1.5 is pressed.
+; Lab2_MuntakimRahman_71065221.asm:
+; 	a) Increments/decrements a BCD variable every second using an ISR for timer 2;
+;   b) Generates a 2kHz square wave at pin P1.7 using an ISR for timer 0;
 $NOLIST
 $MODN76E003
 $LIST
@@ -80,11 +78,14 @@ BCD_Alarm_Minutes:  ds 1
 ; In the 8051 we have variables that are 1-bit in size.  We can use the setb, clr, jb, and jnb
 ; instructions with these variables.  This is how you define a 1-bit variable:
 bseg
-one_sec_flag: dbit 1 ; Set Bit In ISR After Every 1000ms
+One_Second_Flag: dbit 1 ; Set Bit In ISR After Every 1000ms
 
-alarm_toggled_flag: dbit 1 ; Set Bit in ISR When Alarm is Toggled
-alarm_enabled_flag: dbit 1 ; Set Bit in ISR When Alarm is Enabled
-alarm_activated_flag: dbit 1 ; Set Bit in ISR When Alarm is Activated
+Alarm_En_Flag: dbit 1
+Alarm_Activate_Flag: dbit 1
+
+Alarm_Toggle_Flag: dbit 1
+Time_PM_Flag: dbit 1 ; Set Bit When Time is in PM
+Alarm_PM_Flag: dbit 1 ; Set Bit When Alarm is in PM
 
 cseg
 ; These 'equ' must match the hardware wiring
@@ -100,8 +101,10 @@ $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
-Time_Msg:  db 'Time xx:xx:xx', 0, 0, 0
-Alarm_Msg:  db 'Alarm xx:xx', 0, 0
+Time_Msg:  db 'Time xx:xx:xxxx', 0, 0, 0, 0
+Alarm_Msg:  db 'Alarm xx:xxxx', 0, 0, 0
+AM_Msg: db 'AM', 0
+PM_Msg: db 'PM', 0
 
 ;---------------------------------;
 ; Routine to initialize the ISR   ;
@@ -130,7 +133,7 @@ Timer0_ISR:
     push acc
 	push psw
 
-	jnb alarm_activated_flag, No_Sound
+	jnb Alarm_Activate_Flag, No_Sound
 Generate_Sound:
 	clr TR0
 	mov TH0, #high(TIMER0_RELOAD)
@@ -194,19 +197,22 @@ Inc_BCD:
 	cjne a, #high(1000), Timer2_ISR_Done
 
 	; 1000 milliseconds have passed.  Set a flag so the main program knows
-	setb one_sec_flag ; Let the main program know half second had passed
+	setb One_Second_Flag ; Let the main program know half second had passed
 Check_Alarm:
 	mov a, BCD_Hours
 	cjne a, BCD_Alarm_Hours, No_Alarm
 
 	mov a, BCD_Minutes
 	cjne a, BCD_Alarm_Minutes, No_Alarm
+
+	mov a, Time_PM_Flag
+	cjne a, Alarm_PM_Flag, No_Alarm
 BEEP:
-	setb alarm_activated_flag
+	setb Alarm_Activate_Flag
 	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
 	sjmp Continue_ISR
 No_Alarm:
-	clr alarm_activated_flag
+	clr Alarm_Activate_Flag
 Continue_ISR:
 	; Reset to zero the milli-BCD_Seconds counter, it is a 16-bit variable
 	clr a
@@ -233,9 +239,10 @@ Inc_Hour:
 	add a, #1
 	da a
 	mov BCD_Hours, a
-	cjne a, #0x24, Timer2_ISR_Done
-Inc_Day:
-	mov BCD_Hours, #0x00
+	cjne a, #0x12, Timer2_ISR_Done
+Toggle_AM_PM:
+	mov BCD_Hours, #0x12
+	cpl Time_PM_Flag
 Timer2_ISR_Done:
 	pop ar1
 	pop psw
@@ -266,9 +273,14 @@ main:
     Send_Constant_String(#Time_Msg)
 	Set_Cursor(2, 1)
     Send_Constant_String(#Alarm_Msg)
-    setb one_sec_flag
+    setb One_Second_Flag
 
-	mov a, #0x01
+	clr Alarm_En_Flag
+	clr Alarm_Activate_Flag
+	clr Alarm_Toggle_Flag
+	clr Time_PM_Flag
+
+	mov a, #0x11
 	da a
 	mov BCD_Hours, a
 
@@ -297,10 +309,10 @@ Toggle_Mode_Check:
 	Wait_Milli_Seconds(#250)
 	jnb TOGGLE_BUTTON, $ ; Jump to Same Instruction Once Button is Released.
 Toggle_Mode:
-	cpl alarm_toggled_flag
+	cpl Alarm_Toggle_Flag
 Current_Mode:
-	jnb one_sec_flag, Toggle_Mode_Check
-	jnb alarm_toggled_flag, User_Inc_Time
+	jnb One_Second_Flag, Toggle_Mode_Check
+	jnb Alarm_Toggle_Flag, User_Inc_Time
 User_Inc_Alarm:
 	sjmp User_Inc_Alarm_Hours
 User_Inc_Alarm_Hours:
@@ -314,7 +326,7 @@ User_Inc_Alarm_Hours:
 	add a, #1
 	da a
 	mov BCD_Alarm_Hours, a
-	cjne a, #0x24, Update_LCD_Display
+	cjne a, #0x12, Update_LCD_Display
 	mov BCD_Alarm_Hours, #0x00
 	ljmp Update_LCD_Display ; Display the New Time
 Check_Alarm_Minutes:
@@ -340,7 +352,7 @@ User_Inc_Seconds:
 	sjmp Update_LCD_Display
 
 Update_LCD_Display:
-    clr one_sec_flag
+    clr One_Second_Flag
 
 	Set_Cursor(1, 6)
 	Display_BCD(BCD_Hours)
@@ -353,6 +365,25 @@ Update_LCD_Display:
 	Display_BCD(BCD_Alarm_Hours)
 	Set_Cursor(2, 10)
 	Display_BCD(BCD_Alarm_Minutes)
+Display_Time_AMPM:
+	jb Time_PM_Flag, Display_Time_PM
+Display_Time_AM:
+	Set_Cursor(1, 14)
+	Send_Constant_String(#AM_MSG)
+	ljmp Display_Alarm_AMPM
+Display_Time_PM:
+	Set_Cursor(1, 14)
+	Send_Constant_String(#PM_MSG)
+	ljmp Display_Alarm_AMPM
+Display_Alarm_AMPM:
+	jb Alarm_PM_Flag, Display_Alarm_PM
+Display_Alarm_AM:
+	Set_Cursor(2, 12)
+	Send_Constant_String(#AM_MSG)
+    ljmp Toggle_Mode_Check
+Display_Alarm_PM:
+	Set_Cursor(2, 12)
+	Send_Constant_String(#PM_MSG)
     ljmp Toggle_Mode_Check
 END
 `
