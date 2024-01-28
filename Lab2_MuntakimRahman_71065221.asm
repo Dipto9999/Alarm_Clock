@@ -1,6 +1,6 @@
 ; ISR_example.asm: a) Increments/decrements a BCD variable every half second using
 ; an ISR for timer 2; b) Generates a 2kHz square wave at pin P1.7 using
-; an ISR for timer 0; and c) in the 'main' loop it displays the variable
+; an ISR for timer 0; and c) in the 'main' Toggle_Mode_Check it displays the variable
 ; incremented/decremented using the ISR for timer 2 on the LCD.  Also resets it to
 ; zero if the 'CLEAR' push button connected to P1.5 is pressed.
 $NOLIST
@@ -25,12 +25,18 @@ $LIST
 CLK           EQU 16600000 ; Microcontroller system frequency in Hz
 TIMER0_RATE   EQU 4096     ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
 TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
+
 TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 
-CLEAR_BUTTON  equ P1.5
-UPDOWN        equ P1.6
-SOUND_OUT     equ P1.7
+TOGGLE_BUTTON  equ P0.4 ; Pin 20
+SET_BUTTON     equ P0.5 ; Pin 1
+
+HOURS_BUTTON   equ P3.0 ; Pin 5
+MINUTES_BUTTON equ P1.6 ; Pin 8
+SECONDS_BUTTON equ P1.5 ; Pin 10
+
+ALARM_OUT      equ P1.7 ; Pin 6
 
 ; Reset vector
 org 0x0000
@@ -91,7 +97,6 @@ $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
-;                     1234567890123456    <- This helps determine the location of the counter
 Time_Msg:  db 'Time xx:xx:xx', 0, 0, 0
 Alarm_Msg:  db 'Alarm xx:xx', 0, 0
 
@@ -115,7 +120,7 @@ Timer0_Init:
 ;---------------------------------;
 ; ISR for timer 0.  Set to execute;
 ; every 1/4096Hz to generate a    ;
-; 2048 Hz wave at pin SOUND_OUT   ;
+; 2048 Hz wave at pin ALARM_OUT   ;
 ;---------------------------------;
 Timer0_ISR:
 	; Timer 0 Doesn't Have 16-Bit Auto-Reload.
@@ -128,7 +133,7 @@ Generate_Sound:
 	mov TH0, #high(TIMER0_RELOAD)
 	mov TL0, #low(TIMER0_RELOAD)
 	setb TR0
-	cpl SOUND_OUT ; Connect speaker the pin assigned to 'SOUND_OUT'!
+	cpl ALARM_OUT ; Connect speaker the pin assigned to 'ALARM_OUT'!
 	sjmp Timer0_ISR_Done
 No_Sound:
 	mov TH0, #high(TIMER0_RELOAD)
@@ -237,7 +242,7 @@ Timer2_ISR_Done:
 ;---------------------------------;
 ; Main program. Includes hardware ;
 ; initialization and 'forever'    ;
-; loop.                           ;
+; Toggle_Mode_Check.                           ;
 ;---------------------------------;
 main:
 	; Initialization
@@ -276,29 +281,31 @@ main:
 	da a
 	mov BCD_Alarm_Hours, a
 
-	mov a, #0x00
+	mov a, #0x05
 	da a
 	mov BCD_Alarm_Minutes, a
 
-	; After initialization the program stays in this 'forever' loop
-loop:
-	jb CLEAR_BUTTON, loop_a  ; if the 'CLEAR' button is not pressed skip
-	Wait_Milli_Seconds(#50)	; Debounce delay.  This macro is also in 'LCD_4bit.inc'
-	jb CLEAR_BUTTON, loop_a  ; if the 'CLEAR' button is not pressed skip
-	jnb CLEAR_BUTTON, $		; Wait for button release.  The '$' means: jump to same instruction.
-	; A valid press of the 'CLEAR' button has been detected, reset the BCD counter.
-	; But first stop timer 2 and reset the milli-BCD_Seconds counter, to resync everything.
-	clr TR2                 ; Stop timer 2
+	; After initialization the program stays in this 'forever' Toggle_Mode_Check
+Toggle_Mode_Check:
+	; Wait and See Method.
+	jb TOGGLE_BUTTON, Time_Increment_Check  ; if the 'CLEAR' button is not pressed skip
+	Wait_Milli_Seconds(#50)
+	jb TOGGLE_BUTTON, Time_Increment_Check  ; if the 'CLEAR' button is not pressed skip
+	jnb TOGGLE_BUTTON, Reset_Time ; Jump to Same Instruction Once Button is Released.
+Reset_Time:
+	clr TR2 ; Stop Timer 2
 	clr a
 	mov Count1ms+0, a
 	mov Count1ms+1, a
-	; Now clear the BCD counter
+	; Clear BCD Seconds
+	mov BCD_Hours, a
+	mov BCD_Minutes, a
 	mov BCD_Seconds, a
-	setb TR2                ; Start timer 2
-	sjmp loop_b             ; Display the new value
-loop_a:
-	jnb one_sec_flag, loop
-loop_b:
+	setb TR2 ; Restart Timer 2
+	sjmp Update_LCD_Display ; Display the New Time
+Time_Increment_Check:
+	jnb one_sec_flag, Toggle_Mode_Check
+Update_LCD_Display:
     clr one_sec_flag
 
 	Set_Cursor(1, 6)
@@ -312,6 +319,6 @@ loop_b:
 	Display_BCD(BCD_Alarm_Hours)
 	Set_Cursor(2, 10)
 	Display_BCD(BCD_Alarm_Minutes)
-    ljmp loop
+    ljmp Toggle_Mode_Check
 END
 `
