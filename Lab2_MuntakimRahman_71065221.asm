@@ -189,13 +189,16 @@ Inc_BCD:
 	setb one_sec_flag ; Let the main program know half second had passed
 Check_Alarm:
 	mov a, BCD_Hours
-	cjne a, BCD_Alarm_Hours, Continue_ISR
+	cjne a, BCD_Alarm_Hours, No_Alarm
 
 	mov a, BCD_Minutes
-	cjne a, BCD_Alarm_Minutes, Continue_ISR
-	setb alarm_enabled_flag
+	cjne a, BCD_Alarm_Minutes, No_Alarm
 BEEP:
+	setb alarm_enabled_flag
 	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
+	sjmp Continue_ISR
+No_Alarm:
+	clr alarm_enabled_flag
 Continue_ISR:
 	; Reset to zero the milli-BCD_Seconds counter, it is a 16-bit variable
 	clr a
@@ -261,11 +264,11 @@ main:
 	da a
 	mov BCD_Hours, a
 
-	mov a, #0x58
+	mov a, #0x59
 	da a
 	mov BCD_Minutes, a
 
-	mov a, #0x55
+	mov a, #0x50
 	da a
 	mov BCD_Seconds, a
 
@@ -273,7 +276,7 @@ main:
 	da a
 	mov BCD_Alarm_Hours, a
 
-	mov a, #0x02
+	mov a, #0x00
 	da a
 	mov BCD_Alarm_Minutes, a
 
