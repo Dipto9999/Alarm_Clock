@@ -68,6 +68,9 @@ BCD_Hours:  ds 1
 BCD_Minutes:  ds 1
 BCD_Seconds:  ds 1
 
+BCD_Alarm_Hours:  ds 1
+BCD_Alarm_Minutes:  ds 1
+
 ; In the 8051 we have variables that are 1-bit in size.  We can use the setb, clr, jb, and jnb
 ; instructions with these variables.  This is how you define a 1-bit variable:
 bseg
@@ -89,7 +92,8 @@ $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
 ;                     1234567890123456    <- This helps determine the location of the counter
-Initial_Message:  db 'Time xx:xx:xx', 0, 0, 0
+Time_Msg:  db 'Time xx:xx:xx', 0, 0, 0
+Alarm_Msg:  db 'Alarm xx:xx', 0, 0
 
 ;---------------------------------;
 ; Routine to initialize the ISR   ;
@@ -118,16 +122,8 @@ Timer0_ISR:
     push acc
 	push psw
 
-	mov a, BCD_Seconds
-	subb a, #0x30
-	jc No_Sound
-
-	mov a, BCD_Seconds
-	subb a, #0x40
-	jnc No_Sound
+	jnb alarm_enabled_flag, No_Sound
 Generate_Sound:
-	setb alarm_enabled_flag
-
 	clr TR0
 	mov TH0, #high(TIMER0_RELOAD)
 	mov TL0, #low(TIMER0_RELOAD)
@@ -135,7 +131,6 @@ Generate_Sound:
 	cpl SOUND_OUT ; Connect speaker the pin assigned to 'SOUND_OUT'!
 	sjmp Timer0_ISR_Done
 No_Sound:
-	clr alarm_enabled_flag
 	mov TH0, #high(TIMER0_RELOAD)
 	mov TL0, #low(TIMER0_RELOAD)
 Timer0_ISR_Done:
@@ -175,6 +170,7 @@ Timer2_ISR:
 	; The two registers used in the ISR must be saved in the stack
 	push acc
 	push psw
+	push ar1
 
 	; Increment the 16-bit one mili second counter
 	inc Count1ms+0    ; Increment the low 8-bits first
@@ -191,10 +187,16 @@ Inc_BCD:
 
 	; 1000 milliseconds have passed.  Set a flag so the main program knows
 	setb one_sec_flag ; Let the main program know half second had passed
-	jnb alarm_enabled_flag, CONTINUE_ISR
+Check_Alarm:
+	mov a, BCD_Hours
+	cjne a, BCD_Alarm_Hours, Continue_ISR
+
+	mov a, BCD_Minutes
+	cjne a, BCD_Alarm_Minutes, Continue_ISR
+	setb alarm_enabled_flag
 BEEP:
 	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
-CONTINUE_ISR:
+Continue_ISR:
 	; Reset to zero the milli-BCD_Seconds counter, it is a 16-bit variable
 	clr a
 	mov Count1ms+0, a
@@ -224,6 +226,7 @@ Inc_Hour:
 Inc_Day:
 	mov BCD_Hours, #0x00
 Timer2_ISR_Done:
+	pop ar1
 	pop psw
 	pop acc
 	reti
@@ -249,10 +252,12 @@ main:
     lcall LCD_4BIT
     ; For convenience a few handy macros are included in 'LCD_4bit.inc':
 	Set_Cursor(1, 1)
-    Send_Constant_String(#Initial_Message)
+    Send_Constant_String(#Time_Msg)
+	Set_Cursor(2, 1)
+    Send_Constant_String(#Alarm_Msg)
     setb one_sec_flag
 
-	mov a, #0x23
+	mov a, #0x01
 	da a
 	mov BCD_Hours, a
 
@@ -263,6 +268,14 @@ main:
 	mov a, #0x55
 	da a
 	mov BCD_Seconds, a
+
+	mov a, #0x02
+	da a
+	mov BCD_Alarm_Hours, a
+
+	mov a, #0x02
+	da a
+	mov BCD_Alarm_Minutes, a
 
 	; After initialization the program stays in this 'forever' loop
 loop:
@@ -291,6 +304,11 @@ loop_b:
 	Display_BCD(BCD_Minutes)
 	Set_Cursor(1, 12)
 	Display_BCD(BCD_Seconds)
+
+	Set_Cursor(2, 7)
+	Display_BCD(BCD_Alarm_Hours)
+	Set_Cursor(2, 10)
+	Display_BCD(BCD_Alarm_Minutes)
     ljmp loop
 END
 `
