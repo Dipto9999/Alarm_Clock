@@ -81,7 +81,10 @@ BCD_Alarm_Minutes:  ds 1
 ; instructions with these variables.  This is how you define a 1-bit variable:
 bseg
 one_sec_flag: dbit 1 ; Set Bit In ISR After Every 1000ms
+
+alarm_toggled_flag: dbit 1 ; Set Bit in ISR When Alarm is Toggled
 alarm_enabled_flag: dbit 1 ; Set Bit in ISR When Alarm is Enabled
+alarm_activated_flag: dbit 1 ; Set Bit in ISR When Alarm is Activated
 
 cseg
 ; These 'equ' must match the hardware wiring
@@ -127,7 +130,7 @@ Timer0_ISR:
     push acc
 	push psw
 
-	jnb alarm_enabled_flag, No_Sound
+	jnb alarm_activated_flag, No_Sound
 Generate_Sound:
 	clr TR0
 	mov TH0, #high(TIMER0_RELOAD)
@@ -199,11 +202,11 @@ Check_Alarm:
 	mov a, BCD_Minutes
 	cjne a, BCD_Alarm_Minutes, No_Alarm
 BEEP:
-	setb alarm_enabled_flag
+	setb alarm_activated_flag
 	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
 	sjmp Continue_ISR
 No_Alarm:
-	clr alarm_enabled_flag
+	clr alarm_activated_flag
 Continue_ISR:
 	; Reset to zero the milli-BCD_Seconds counter, it is a 16-bit variable
 	clr a
@@ -281,30 +284,59 @@ main:
 	da a
 	mov BCD_Alarm_Hours, a
 
-	mov a, #0x05
+	mov a, #0x01
 	da a
 	mov BCD_Alarm_Minutes, a
 
 	; After initialization the program stays in this 'forever' Toggle_Mode_Check
 Toggle_Mode_Check:
 	; Wait and See Method.
-	jb TOGGLE_BUTTON, Time_Increment_Check  ; if the 'CLEAR' button is not pressed skip
+	jb TOGGLE_BUTTON, Current_Mode  ; Skip if Toggle Button is Not Pressed
 	Wait_Milli_Seconds(#50)
-	jb TOGGLE_BUTTON, Time_Increment_Check  ; if the 'CLEAR' button is not pressed skip
-	jnb TOGGLE_BUTTON, Reset_Time ; Jump to Same Instruction Once Button is Released.
-Reset_Time:
-	clr TR2 ; Stop Timer 2
-	clr a
-	mov Count1ms+0, a
-	mov Count1ms+1, a
-	; Clear BCD Seconds
-	mov BCD_Hours, a
-	mov BCD_Minutes, a
-	mov BCD_Seconds, a
-	setb TR2 ; Restart Timer 2
-	sjmp Update_LCD_Display ; Display the New Time
-Time_Increment_Check:
+	jb TOGGLE_BUTTON, Current_Mode ; Skip if Toggle Button is Not Pressed
+	jnb TOGGLE_BUTTON, $ ; Jump to Same Instruction Once Button is Released.
+	jb TOGGLE_BUTTON, Toggle_Mode
+Toggle_Mode:
+	cpl alarm_toggled_flag
+Current_Mode:
 	jnb one_sec_flag, Toggle_Mode_Check
+	jnb alarm_toggled_flag, User_Inc_Time
+User_Inc_Alarm:
+	jb HOURS_BUTTON, User_Inc_Alarm_Hours
+	Wait_Milli_Seconds(#50)
+	jb HOURS_BUTTON, User_Inc_Alarm_Hours
+	jnb HOURS_BUTTON, $
+
+	jb MINUTES_BUTTON, User_Inc_Alarm_Minutes
+	Wait_Milli_Seconds(#50)
+	jb MINUTES_BUTTON, User_Inc_Alarm_Minutes
+	ljmp Update_LCD_Display ; Display the New Time
+
+User_Inc_Alarm_Minutes:
+	mov a, BCD_Alarm_Minutes
+	add a, #1
+	da a
+	mov BCD_Alarm_Minutes, a
+	cjne a, #0x60, Update_LCD_Display
+	mov BCD_Alarm_Minutes, #0x00
+	ljmp Update_LCD_Display ; Display the New Time
+User_Inc_Alarm_Hours:
+	mov a, BCD_Alarm_Hours
+	add a, #1
+	da a
+	mov BCD_Alarm_Hours, a
+	cjne a, #0x24, Update_LCD_Display
+	mov BCD_Alarm_Hours, #0x00
+	ljmp Update_LCD_Display ; Display the New Time
+
+User_Inc_Time:
+	sjmp User_Inc_Hours
+User_Inc_Hours:
+	sjmp User_Inc_Seconds
+User_Inc_Seconds:
+	jnb one_sec_flag, Toggle_Mode_Check
+	sjmp Update_LCD_Display
+
 Update_LCD_Display:
     clr one_sec_flag
 
