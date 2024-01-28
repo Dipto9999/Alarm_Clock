@@ -294,33 +294,22 @@ Toggle_Mode_Check:
 	jb TOGGLE_BUTTON, Current_Mode  ; Skip if Toggle Button is Not Pressed
 	Wait_Milli_Seconds(#50)
 	jb TOGGLE_BUTTON, Current_Mode ; Skip if Toggle Button is Not Pressed
+	Wait_Milli_Seconds(#250)
 	jnb TOGGLE_BUTTON, $ ; Jump to Same Instruction Once Button is Released.
-	jb TOGGLE_BUTTON, Toggle_Mode
 Toggle_Mode:
 	cpl alarm_toggled_flag
 Current_Mode:
 	jnb one_sec_flag, Toggle_Mode_Check
 	jnb alarm_toggled_flag, User_Inc_Time
 User_Inc_Alarm:
-	jb HOURS_BUTTON, User_Inc_Alarm_Hours
+	sjmp User_Inc_Alarm_Hours
+User_Inc_Alarm_Hours:
+	jb HOURS_BUTTON, Check_Alarm_Minutes
 	Wait_Milli_Seconds(#50)
-	jb HOURS_BUTTON, User_Inc_Alarm_Hours
+	jb HOURS_BUTTON, Check_Alarm_Minutes
+	Wait_Milli_Seconds(#250)
 	jnb HOURS_BUTTON, $
 
-	jb MINUTES_BUTTON, User_Inc_Alarm_Minutes
-	Wait_Milli_Seconds(#50)
-	jb MINUTES_BUTTON, User_Inc_Alarm_Minutes
-	ljmp Update_LCD_Display ; Display the New Time
-
-User_Inc_Alarm_Minutes:
-	mov a, BCD_Alarm_Minutes
-	add a, #1
-	da a
-	mov BCD_Alarm_Minutes, a
-	cjne a, #0x60, Update_LCD_Display
-	mov BCD_Alarm_Minutes, #0x00
-	ljmp Update_LCD_Display ; Display the New Time
-User_Inc_Alarm_Hours:
 	mov a, BCD_Alarm_Hours
 	add a, #1
 	da a
@@ -328,13 +317,26 @@ User_Inc_Alarm_Hours:
 	cjne a, #0x24, Update_LCD_Display
 	mov BCD_Alarm_Hours, #0x00
 	ljmp Update_LCD_Display ; Display the New Time
+Check_Alarm_Minutes:
+	jb MINUTES_BUTTON, Update_LCD_Display
+	Wait_Milli_Seconds(#50)
+	jb MINUTES_BUTTON, Update_LCD_Display
+	Wait_Milli_Seconds(#250)
+	jnb MINUTES_BUTTON, $
+
+	mov a, BCD_Alarm_Minutes
+	add a, #1
+	da a
+	mov BCD_Alarm_Minutes, a
+	cjne a, #0x60, Update_LCD_Display
+	mov BCD_Alarm_Minutes, #0x00
+	ljmp Update_LCD_Display ; Display the New Time
 
 User_Inc_Time:
 	sjmp User_Inc_Hours
 User_Inc_Hours:
 	sjmp User_Inc_Seconds
 User_Inc_Seconds:
-	jnb one_sec_flag, Toggle_Mode_Check
 	sjmp Update_LCD_Display
 
 Update_LCD_Display:
