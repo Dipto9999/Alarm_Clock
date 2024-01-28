@@ -68,7 +68,7 @@ BCD_counter:  ds 1 ; The BCD counter incrememted in the ISR and displayed in the
 ; In the 8051 we have variables that are 1-bit in size.  We can use the setb, clr, jb, and jnb
 ; instructions with these variables.  This is how you define a 1-bit variable:
 bseg
-half_seconds_flag: dbit 1 ; Set to one in the ISR every time 500 ms had passed
+one_sec_flag: dbit 1 ; Set to one in the ISR every time 500 ms had passed
 
 cseg
 ; These 'equ' must match the hardware wiring
@@ -84,8 +84,7 @@ $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
-;                     1234567890123456    <- This helps determine the location of the counter
-Initial_Message:  db 'BCD_counter: xx ', 0
+Initial_Message:  db 'Time 12:00:00', 0
 
 ;---------------------------------;
 ; Routine to initialize the ISR   ;
@@ -178,12 +177,12 @@ Timer2_ISR:
 Inc_Done:
 	; Check if half second has passed
 	mov a, Count1ms+0
-	cjne a, #low(500), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
+	cjne a, #low(1000), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
-	cjne a, #high(500), Timer2_ISR_done
+	cjne a, #high(1000), Timer2_ISR_done
 
 	; 500 milliseconds have passed.  Set a flag so the main program knows
-	setb half_seconds_flag ; Let the main program know half second had passed
+	setb one_sec_flag ; Let the main program know half second had passed
 	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
 	; Reset to zero the milli-seconds counter, it is a 16-bit variable
 	clr a
@@ -227,7 +226,7 @@ main:
     ; For convenience a few handy macros are included in 'LCD_4bit.inc':
 	Set_Cursor(1, 1)
     Send_Constant_String(#Initial_Message)
-    setb half_seconds_flag
+    setb one_sec_flag
 	mov BCD_counter, #0x00
 
 	; After initialization the program stays in this 'forever' loop
@@ -247,10 +246,10 @@ loop:
 	setb TR2                ; Start timer 2
 	sjmp loop_b             ; Display the new value
 loop_a:
-	jnb half_seconds_flag, loop
+	jnb one_sec_flag, loop
 loop_b:
-    clr half_seconds_flag ; We clear this flag in the main loop, but it is set in the ISR for timer 2
-	Set_Cursor(1, 14)     ; the place in the LCD where we want the BCD counter value
+    clr one_sec_flag ; We clear this flag in the main loop, but it is set in the ISR for timer 2
+	Set_Cursor(1, 12)     ; the place in the LCD where we want the BCD counter value
 	Display_BCD(BCD_counter) ; This macro is also in 'LCD_4bit.inc'
     ljmp loop
 END
