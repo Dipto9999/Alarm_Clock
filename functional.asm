@@ -68,9 +68,9 @@ org 0x002B
 dseg at 0x30
 Count1ms:     ds 2 ; Used to determine when half second has passed
 
-BCD_Hours:  ds 1
-BCD_Minutes:  ds 1
-BCD_Seconds:  ds 1
+BCD_Time_Hours:  ds 1
+BCD_Time_Minutes:  ds 1
+BCD_Time_Seconds:  ds 1
 
 BCD_Alarm_Hours:  ds 1
 BCD_Alarm_Minutes:  ds 1
@@ -181,7 +181,6 @@ Timer2_ISR:
 	; The two registers used in the ISR must be saved in the stack
 	push acc
 	push psw
-	push ar1
 
 	; Increment the 16-bit one mili second counter
 	inc Count1ms+0    ; Increment the low 8-bits first
@@ -199,52 +198,35 @@ Inc_BCD:
 	; 1000 milliseconds have passed.  Set a flag so the main program knows
 	setb One_Second_Flag ; Let the main program know half second had passed
 Check_Alarm:
-	mov a, BCD_Hours
+	; Check if Time Hours Equals Alarm Hours
+	mov a, BCD_Time_Hours
 	cjne a, BCD_Alarm_Hours, No_Alarm
 
-	mov a, BCD_Minutes
+	; Check if Time Minutes Equals Alarm Minutes
+	mov a, BCD_Time_Minutes
 	cjne a, BCD_Alarm_Minutes, No_Alarm
 
-	mov a, Time_PM_Flag
-	cjne a, Alarm_PM_Flag, No_Alarm
+	; Check AM/PM Flag
+	clr a
+	mov b, a ; At this point A and B are zero
+	mov c, Time_PM_Flag
+	mov b.0, c
+	mov c, Alarm_PM_Flag
+	mov acc.0, c
+	cjne a, b, No_Alarm
 BEEP:
 	setb Alarm_Activate_Flag
-	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
+	cpl TR0 ; Create Beep-Silence-Beep-Silence Sounds
 	sjmp Continue_ISR
 No_Alarm:
 	clr Alarm_Activate_Flag
 Continue_ISR:
-	; Reset to zero the milli-BCD_Seconds counter, it is a 16-bit variable
+	; Reset to zero the milli-BCD_Time_Seconds counter, it is a 16-bit variable
 	clr a
 	mov Count1ms+0, a
 	mov Count1ms+1, a
-Inc_Second:
-	mov a, BCD_Seconds
-	add a, #1
-	da a
-	mov BCD_Seconds, a
-	cjne a, #0x60, Timer2_ISR_Done
-Inc_Minute:
-	mov BCD_Seconds, #0x00
-
-	mov a, BCD_Minutes
-	add a, #1
-	da a
-	mov BCD_Minutes, a
-	cjne a, #0x60, Timer2_ISR_Done
-Inc_Hour:
-	mov BCD_Minutes, #0x00
-
-	mov a, BCD_Hours
-	add a, #1
-	da a
-	mov BCD_Hours, a
-	cjne a, #0x12, Timer2_ISR_Done
-Toggle_AM_PM:
-	mov BCD_Hours, #0x12
-	cpl Time_PM_Flag
+	lcall Inc_Time_Seconds
 Timer2_ISR_Done:
-	pop ar1
 	pop psw
 	pop acc
 	reti
@@ -252,7 +234,7 @@ Timer2_ISR_Done:
 ;---------------------------------;
 ; Main program. Includes hardware ;
 ; initialization and 'forever'    ;
-; Toggle_Mode_Check.                           ;
+; Check_Toggle_Mode.                           ;
 ;---------------------------------;
 main:
 	; Initialization
@@ -273,117 +255,213 @@ main:
     Send_Constant_String(#Time_Msg)
 	Set_Cursor(2, 1)
     Send_Constant_String(#Alarm_Msg)
-    setb One_Second_Flag
 
+    setb One_Second_Flag
 	clr Alarm_En_Flag
 	clr Alarm_Activate_Flag
 	clr Alarm_Toggle_Flag
-	clr Time_PM_Flag
+	setb Time_PM_Flag
+	setb Alarm_PM_Flag
 
-	mov a, #0x11
+	mov a, #0x12
 	da a
-	mov BCD_Hours, a
+	mov BCD_Time_Hours, a
 
 	mov a, #0x59
 	da a
-	mov BCD_Minutes, a
+	mov BCD_Time_Minutes, a
 
-	mov a, #0x50
+	mov a, #0x45
 	da a
-	mov BCD_Seconds, a
-
-	mov a, #0x02
-	da a
-	mov BCD_Alarm_Hours, a
+	mov BCD_Time_Seconds, a
 
 	mov a, #0x01
 	da a
+	mov BCD_Alarm_Hours, a
+
+	mov a, #0x00
+	da a
 	mov BCD_Alarm_Minutes, a
 
-	; After initialization the program stays in this 'forever' Toggle_Mode_Check
-Toggle_Mode_Check:
+	; After initialization the program stays in this 'forever' Check_Toggle_Mode
+Check_Toggle_Mode:
 	; Wait and See Method.
-	jb TOGGLE_BUTTON, Current_Mode  ; Skip if Toggle Button is Not Pressed
+	jb TOGGLE_BUTTON, Check_Inc_Buttons ; Skip if Toggle Button is Not Pressed
 	Wait_Milli_Seconds(#50)
-	jb TOGGLE_BUTTON, Current_Mode ; Skip if Toggle Button is Not Pressed
-	Wait_Milli_Seconds(#250)
+	jb TOGGLE_BUTTON, Check_Inc_Buttons ; Skip if Toggle Button is Not Pressed
 	jnb TOGGLE_BUTTON, $ ; Jump to Same Instruction Once Button is Released.
+	lcall Toggle_Mode ; Toggle Mode
+Check_Inc_Buttons:
+	jnb One_Second_Flag, Check_Toggle_Mode
+	jb Alarm_Toggle_Flag, Check_Inc_Alarm
+	ljmp Check_Inc_Time
+
 Toggle_Mode:
 	cpl Alarm_Toggle_Flag
-Current_Mode:
-	jnb One_Second_Flag, Toggle_Mode_Check
-	jnb Alarm_Toggle_Flag, User_Inc_Time
-User_Inc_Alarm:
-	sjmp User_Inc_Alarm_Hours
-User_Inc_Alarm_Hours:
-	jb HOURS_BUTTON, Check_Alarm_Minutes
-	Wait_Milli_Seconds(#50)
-	jb HOURS_BUTTON, Check_Alarm_Minutes
-	Wait_Milli_Seconds(#250)
-	jnb HOURS_BUTTON, $
+	ret
 
-	mov a, BCD_Alarm_Hours
-	add a, #1
-	da a
-	mov BCD_Alarm_Hours, a
-	cjne a, #0x12, Update_LCD_Display
-	mov BCD_Alarm_Hours, #0x00
-	ljmp Update_LCD_Display ; Display the New Time
-Check_Alarm_Minutes:
-	jb MINUTES_BUTTON, Update_LCD_Display
+Check_Inc_Alarm:
+	sjmp Check_Inc_Alarm_Minutes
+Check_Inc_Alarm_Set:
+	jb SET_BUTTON, Check_Inc_Alarm_Minutes
 	Wait_Milli_Seconds(#50)
-	jb MINUTES_BUTTON, Update_LCD_Display
-	Wait_Milli_Seconds(#250)
+	jb SET_BUTTON, Check_Inc_Alarm_Minutes
+	jnb SET_BUTTON, $
+	cpl Alarm_En_Flag
+Check_Inc_Alarm_Minutes:
+	jb MINUTES_BUTTON, Check_Inc_Alarm_Hours
+	Wait_Milli_Seconds(#50)
+	jb MINUTES_BUTTON, Check_Inc_Alarm_Hours
+	jnb MINUTES_BUTTON, $
+	lcall Inc_Alarm_Minutes ; Increment Alarm Minutes
+Check_Inc_Alarm_Hours:
+	jb HOURS_BUTTON, Update_LCD_Display
+	Wait_Milli_Seconds(#50)
+	jb HOURS_BUTTON, Update_LCD_Display
+	jnb HOURS_BUTTON, $
+	lcall Inc_Alarm_Hours ; Increment Alarm Hours
+
+Check_Inc_Time:
+	clr TR2 ; Stop Timer 2
+Check_Inc_Time_Seconds:
+	jb SECONDS_BUTTON, Check_Inc_Time_Minutes
+	Wait_Milli_Seconds(#50)
+	jb SECONDS_BUTTON, Check_Inc_Time_Minutes
+	jnb SECONDS_BUTTON, $
+
+	lcall Inc_Time_Seconds
+Check_Inc_Time_Minutes:
+	jb MINUTES_BUTTON, Check_Inc_Time_Hours
+	Wait_Milli_Seconds(#50)
+	jb MINUTES_BUTTON, Check_Inc_Time_Hours
 	jnb MINUTES_BUTTON, $
 
-	mov a, BCD_Alarm_Minutes
-	add a, #1
-	da a
-	mov BCD_Alarm_Minutes, a
-	cjne a, #0x60, Update_LCD_Display
-	mov BCD_Alarm_Minutes, #0x00
-	ljmp Update_LCD_Display ; Display the New Time
+	lcall Inc_Time_Minutes
+Check_Inc_Time_Hours:
+	jb HOURS_BUTTON, Check_Inc_Time_End
+	Wait_Milli_Seconds(#50)
+	jb HOURS_BUTTON, Check_Inc_Time_End
+	jnb HOURS_BUTTON, $
 
-User_Inc_Time:
-	sjmp User_Inc_Hours
-User_Inc_Hours:
-	sjmp User_Inc_Seconds
-User_Inc_Seconds:
-	sjmp Update_LCD_Display
+	lcall Inc_Time_Hours
+Check_Inc_Time_End:
+	setb TR2 ; Start Timer 2
 
+;--------------------;
+; Update LCD Display ;
+;--------------------;
 Update_LCD_Display:
     clr One_Second_Flag
-
+Display_Time:
+	; Display Time
 	Set_Cursor(1, 6)
-	Display_BCD(BCD_Hours)
+	Display_BCD(BCD_Time_Hours)
 	Set_Cursor(1, 9)
-	Display_BCD(BCD_Minutes)
+	Display_BCD(BCD_Time_Minutes)
 	Set_Cursor(1, 12)
-	Display_BCD(BCD_Seconds)
+	Display_BCD(BCD_Time_Seconds)
 
-	Set_Cursor(2, 7)
-	Display_BCD(BCD_Alarm_Hours)
-	Set_Cursor(2, 10)
-	Display_BCD(BCD_Alarm_Minutes)
-Display_Time_AMPM:
 	jb Time_PM_Flag, Display_Time_PM
 Display_Time_AM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#AM_MSG)
-	ljmp Display_Alarm_AMPM
+	ljmp Display_Alarm
 Display_Time_PM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#PM_MSG)
-	ljmp Display_Alarm_AMPM
-Display_Alarm_AMPM:
+	ljmp Display_Alarm
+Display_Alarm:
+	; Display Alarm
+	Set_Cursor(2, 7)
+	Display_BCD(BCD_Alarm_Hours)
+	Set_Cursor(2, 10)
+	Display_BCD(BCD_Alarm_Minutes)
+
 	jb Alarm_PM_Flag, Display_Alarm_PM
 Display_Alarm_AM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#AM_MSG)
-    ljmp Toggle_Mode_Check
+    ljmp Check_Toggle_Mode
 Display_Alarm_PM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#PM_MSG)
-    ljmp Toggle_Mode_Check
+    ljmp Check_Toggle_Mode
+
+;-------------------------------;
+; Increment Time on LCD Display ;
+;-------------------------------;
+Inc_Time_Hours:
+	mov a, BCD_Time_Hours
+	add a, #1
+	da a
+	mov BCD_Time_Hours, a
+	subb a, #0x12
+	jc Inc_Time_Hours_Done
+	jnz Offset_Time_Hours
+Toggle_Time_AMPM:
+	mov BCD_Time_Hours, #0x12
+	cpl Time_PM_Flag
+	ljmp Inc_Time_Hours_Done
+Offset_Time_Hours:
+	mov a, BCD_Time_Hours
+	subb a, #0x12
+	da a
+	mov BCD_Time_Hours, a
+Inc_Time_Hours_Done:
+	ret
+
+Inc_Time_Minutes:
+	mov a, BCD_Time_Minutes
+	add a, #1
+	da a
+	mov BCD_Time_Minutes, a
+	cjne a, #0x60, Inc_Time_Minutes_Done
+	mov BCD_Time_Minutes, #0x00
+	lcall Inc_Time_Hours
+Inc_Time_Minutes_Done:
+	ret
+
+Inc_Time_Seconds:
+	mov a, BCD_Time_Seconds
+	add a, #1
+	da a
+	mov BCD_Time_Seconds, a
+	cjne a, #0x60, Inc_Time_Seconds_Done
+	mov BCD_Time_Seconds, #0x00
+	lcall Inc_Time_Minutes
+Inc_Time_Seconds_Done:
+	ret
+
+Inc_Alarm_Hours:
+	mov a, BCD_Alarm_Hours
+	add a, #1
+	da a
+	mov BCD_Alarm_Hours, a
+	subb a, #0x12
+	jc Inc_Alarm_Hours_Done
+	jnz Offset_Alarm_Hours
+Toggle_Alarm_AMPM:
+	mov BCD_Alarm_Hours, #0x12
+	cpl Alarm_PM_Flag
+	ljmp Inc_Alarm_Hours_Done
+Offset_Alarm_Hours:
+	mov a, BCD_Alarm_Hours
+	subb a, #0x12
+	da a
+	mov BCD_Alarm_Hours, a
+Inc_Alarm_Hours_Done:
+	ret
+
+Inc_Alarm_Minutes:
+	mov a, BCD_Alarm_Minutes
+	add a, #1
+	da a
+	mov BCD_Alarm_Minutes, a
+	cjne a, #0x60, Inc_Alarm_Minutes_Done
+	mov BCD_Alarm_Minutes, #0x00
+	lcall Inc_Alarm_Hours
+Inc_Alarm_Minutes_Done:
+	ret
+
 END
 `
