@@ -280,7 +280,6 @@ main:
 	Set_Cursor(2, 1)
     Send_Constant_String(#Alarm_Msg)
 
-
     setb One_Second_Flag
 	clr Alarm_En_Flag
 	clr Alarm_Activate_Flag
@@ -288,7 +287,7 @@ main:
 	clr Time_PM_Flag
 	clr Alarm_PM_Flag
 
-	mov a, #0x01
+	mov a, #0x11
 	da a
 	mov BCD_Hours, a
 
@@ -300,11 +299,11 @@ main:
 	da a
 	mov BCD_Seconds, a
 
-	mov a, #0x02
+	mov a, #0x12
 	da a
 	mov BCD_Alarm_Hours, a
 
-	mov a, #0x01
+	mov a, #0x00
 	da a
 	mov BCD_Alarm_Minutes, a
 
@@ -378,24 +377,20 @@ Display_Time_AMPM:
 Display_Time_AM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#AM_MSG)
-	; Display_BCD(Time_PM_Flag)
 	ljmp Display_Alarm_AMPM
 Display_Time_PM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#PM_MSG)
-	; Display_BCD(Time_PM_Flag)
 	ljmp Display_Alarm_AMPM
 Display_Alarm_AMPM:
 	jb Alarm_PM_Flag, Display_Alarm_PM
 Display_Alarm_AM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#AM_MSG)
-	; Display_BCD(Alarm_PM_Flag)
     ljmp Toggle_Mode_Check
 Display_Alarm_PM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#PM_MSG)
-	; Display_BCD(Alarm_PM_Flag)
     ljmp Toggle_Mode_Check
 END
 `
