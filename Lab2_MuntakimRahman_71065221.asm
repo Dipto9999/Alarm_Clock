@@ -27,14 +27,14 @@ TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 
-TOGGLE_BUTTON  equ P0.4 ; Pin 20
+SET_BUTTON  equ P1.1 ; Pin 14
 
-SET_BUTTON     equ P0.5 ; Pin 1
-HOURS_BUTTON   equ P3.0 ; Pin 5
-MINUTES_BUTTON equ P1.6 ; Pin 8
-SECONDS_BUTTON equ P1.5 ; Pin 10
+DECREMENT_BUTTON     equ P0.5 ; Pin 1
+HOURS_BUTTON         equ P3.0 ; Pin 5
+MINUTES_BUTTON       equ P1.6 ; Pin 8
+SECONDS_BUTTON       equ P1.5 ; Pin 10
 
-ALARM_OUT      equ P1.7 ; Pin 6
+ALARM_OUT            equ P1.7 ; Pin 6
 
 ; Reset vector
 org 0x0000
@@ -100,14 +100,14 @@ $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
-Time_Msg:  db 'Time xx:xx:xxxx', 0, 0, 0, 0
-Alarm_Msg:  db 'Alarm xx:xxxx', 0, 0, 0
+TIME_MSG:  db 'TIME xx:xx:xxxx', 0, 0, 0, 0
+ALARM_MSG:  db 'ALARM xx:xxxx', 0
+ALARM_UPDATE_MSG:  db 'ALARM', 0
 
-AM_Msg: db 'AM', 0
-PM_Msg: db 'PM', 0
+AM_MSG: db 'AM', 0
+PM_MSG: db 'PM', 0
 
-ON_Msg: db 'ON', 0
-OFF_Msg: db '          ', 0
+BLANK_DISPLAY: db '                ', 0
 
 ;---------------------------------;
 ; Routine to initialize the ISR   ;
@@ -136,6 +136,7 @@ Timer0_ISR:
     push acc
 	push psw
 
+	jnb Alarm_En_Flag, No_Sound
 	jnb Alarm_Activate_Flag, No_Sound
 Generate_Sound:
 	clr TR0
@@ -201,6 +202,8 @@ Inc_BCD:
 	; 1000 milliseconds have passed.  Set a flag so the main program knows
 	setb One_Second_Flag ; Let the main program know half second had passed
 Check_Alarm:
+	jnb Alarm_En_Flag, No_Alarm
+
 	; Check if Time Hours Equals Alarm Hours
 	mov a, BCD_Time_Hours
 	cjne a, BCD_Alarm_Hours, No_Alarm
@@ -251,32 +254,21 @@ main:
 
     lcall Timer0_Init
     lcall Timer2_Init
-    setb EA   ; Enable Global interrupts
+    setb EA   ; Enable Global Interrupts
     lcall LCD_4BIT
-    ; For convenience a few handy macros are included in 'LCD_4bit.inc':
-	Set_Cursor(1, 1)
-    Send_Constant_String(#Time_Msg)
-	Set_Cursor(2, 1)
-    Send_Constant_String(#Alarm_Msg)
 
     setb One_Second_Flag
-	clr Alarm_En_Flag
+Init_Display:
+	lcall Init_Time
+Init_Alarm:
+	setb Alarm_En_Flag
 	clr Alarm_Activate_Flag
-	setb Time_PM_Flag
+
+	Set_Cursor(2, 1)
+    Send_Constant_String(#ALARM_MSG)
+
+	; Starting Alarm is 01:00 PM
 	setb Alarm_PM_Flag
-
-	mov a, #0x12
-	da a
-	mov BCD_Time_Hours, a
-
-	mov a, #0x59
-	da a
-	mov BCD_Time_Minutes, a
-
-	mov a, #0x45
-	da a
-	mov BCD_Time_Seconds, a
-
 	mov a, #0x01
 	da a
 	mov BCD_Alarm_Hours, a
@@ -286,7 +278,6 @@ main:
 	mov BCD_Alarm_Minutes, a
 
 	ljmp Update_LCD_Display
-
 	; After initialization the program stays in this 'forever' Check_Buttons
 Check_Buttons:
 	sjmp Check_Inc_Alarm
@@ -312,38 +303,16 @@ Check_Inc_Alarm_Hours:
 	lcall Inc_Alarm_Hours ; Increment Alarm Hours
 	ljmp Update_LCD_Display
 
-Check_Inc_Time:
-	clr TR2 ; Stop Timer 2
-Check_Inc_Time_Seconds:
-	jb SECONDS_BUTTON, Check_Inc_Time_Minutes
-	Wait_Milli_Seconds(#50)
-	jb SECONDS_BUTTON, Check_Inc_Time_Minutes
-	jnb SECONDS_BUTTON, $
-
-	lcall Inc_Time_Seconds
-Check_Inc_Time_Minutes:
-	jb MINUTES_BUTTON, Check_Inc_Time_Hours
-	Wait_Milli_Seconds(#50)
-	jb MINUTES_BUTTON, Check_Inc_Time_Hours
-	jnb MINUTES_BUTTON, $
-
-	lcall Inc_Time_Minutes
-Check_Inc_Time_Hours:
-	jb HOURS_BUTTON, Check_Inc_Time_End
-	Wait_Milli_Seconds(#50)
-	jb HOURS_BUTTON, Check_Inc_Time_End
-	jnb HOURS_BUTTON, $
-
-	lcall Inc_Time_Hours
-Check_Inc_Time_End:
-	setb TR2 ; Start Timer 2
-
 ;--------------------;
 ; Update LCD Display ;
 ;--------------------;
 Update_LCD_Display:
     clr One_Second_Flag
-Display_Time:
+	lcall Update_Time_Display
+	lcall Update_Alarm_Display
+	ljmp Check_Buttons
+
+Update_Time_Display:
 	; Display Time
 	Set_Cursor(1, 6)
 	Display_BCD(BCD_Time_Hours)
@@ -352,35 +321,97 @@ Display_Time:
 	Set_Cursor(1, 12)
 	Display_BCD(BCD_Time_Seconds)
 
-	jb Time_PM_Flag, Display_Time_PM
-Display_Time_AM:
+	jb Time_PM_Flag, Update_Time_PM
+Update_Time_AM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#AM_MSG)
-	ljmp Display_Alarm
-Display_Time_PM:
+	ret
+Update_Time_PM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#PM_MSG)
-	ljmp Display_Alarm
-Display_Alarm:
-	jnb Alarm_En_Flag, Display_Alarm_En_Off
-Display_Alarm_En_On:
+	ret
+
+Update_Alarm_Display:
+	jb Alarm_En_Flag, Update_Alarm_En_On
+	ljmp Update_Alarm_En_Off
+Update_Alarm_En_On:
 	; Display Alarm
+	Set_Cursor(2, 1)
+	Send_Constant_String(#ALARM_UPDATE_MSG)
 	Set_Cursor(2, 7)
 	Display_BCD(BCD_Alarm_Hours)
 	Set_Cursor(2, 10)
 	Display_BCD(BCD_Alarm_Minutes)
-Display_Alarm_AM:
+
+	jb Alarm_PM_Flag, Update_Alarm_PM
+Update_Alarm_AM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#AM_MSG)
-    ljmp Check_Buttons
-Display_Alarm_PM:
+    ret
+Update_Alarm_PM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#PM_MSG)
-    ljmp Check_Buttons
-Display_Alarm_En_Off:
-	Set_Cursor(2, 7)
-	Send_Constant_String(#OFF_MSG)
-	ljmp Check_Buttons
+    ret
+Update_Alarm_En_Off:
+	Set_Cursor(2, 1)
+	Send_Constant_String(#BLANK_DISPLAY)
+	ret
+
+Init_Time:
+	setb Time_PM_Flag
+	clr TR2 ; Stop Timer 2
+
+	; Starting Display is 12:59:45 PM
+	mov a, #0x12
+	da a
+	mov BCD_Time_Hours, a
+
+	mov a, #0x59
+	da a
+	mov BCD_Time_Minutes, a
+
+	mov a, #0x45
+	da a
+	mov BCD_Time_Seconds, a
+
+	Set_Cursor(1, 1)
+    Send_Constant_String(#TIME_MSG)
+Check_Set_Time:
+	jb SET_BUTTON, Init_Time_Display
+	setb TR2 ; Start Timer 2
+	Wait_Milli_Seconds(#50)
+	clr TR2 ; Stop Timer 2
+	jb SET_BUTTON, Init_Time_Display
+	jnb SET_BUTTON, $ ; Wait for Rising Edge
+	ljmp Init_Time_End
+Init_Time_Display:
+	lcall Update_Time_Display
+Init_Time_Seconds:
+	jb SECONDS_BUTTON, Init_Time_Minutes
+	Wait_Milli_Seconds(#50)
+	jb SECONDS_BUTTON, Init_Time_Minutes
+	jnb SECONDS_BUTTON, $
+
+	lcall Inc_Time_Seconds
+Init_Time_Minutes:
+	jb MINUTES_BUTTON, Init_Time_Hours
+	Wait_Milli_Seconds(#50)
+	jb MINUTES_BUTTON, Init_Time_Hours
+	jnb MINUTES_BUTTON, $
+
+	lcall Inc_Time_Minutes
+Init_Time_Hours:
+	jb HOURS_BUTTON, Init_Time_Loop
+	Wait_Milli_Seconds(#50)
+	jb HOURS_BUTTON, Init_Time_Loop
+	jnb HOURS_BUTTON, $
+
+	lcall Inc_Time_Hours
+Init_Time_Loop:
+	ljmp Check_Set_Time
+Init_Time_End:
+	setb TR2 ; Set Timer 2
+	ret
 
 ;-------------------------------;
 ; Increment Time on LCD Display ;

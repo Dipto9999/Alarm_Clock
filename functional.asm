@@ -27,14 +27,14 @@ TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 
-TOGGLE_BUTTON  equ P0.4 ; Pin 20
-SET_BUTTON     equ P0.5 ; Pin 1
+SET_BUTTON  equ P1.1 ; Pin 14
 
-HOURS_BUTTON   equ P3.0 ; Pin 5
-MINUTES_BUTTON equ P1.6 ; Pin 8
-SECONDS_BUTTON equ P1.5 ; Pin 10
+DECREMENT_BUTTON     equ P0.5 ; Pin 1
+HOURS_BUTTON         equ P3.0 ; Pin 5
+MINUTES_BUTTON       equ P1.6 ; Pin 8
+SECONDS_BUTTON       equ P1.5 ; Pin 10
 
-ALARM_OUT      equ P1.7 ; Pin 6
+ALARM_OUT            equ P1.7 ; Pin 6
 
 ; Reset vector
 org 0x0000
@@ -83,7 +83,6 @@ One_Second_Flag: dbit 1 ; Set Bit In ISR After Every 1000ms
 Alarm_En_Flag: dbit 1
 Alarm_Activate_Flag: dbit 1
 
-Alarm_Toggle_Flag: dbit 1
 Time_PM_Flag: dbit 1 ; Set Bit When Time is in PM
 Alarm_PM_Flag: dbit 1 ; Set Bit When Alarm is in PM
 
@@ -101,10 +100,14 @@ $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
-Time_Msg:  db 'Time xx:xx:xxxx', 0, 0, 0, 0
-Alarm_Msg:  db 'Alarm xx:xxxx', 0, 0, 0
-AM_Msg: db 'AM', 0
-PM_Msg: db 'PM', 0
+TIME_MSG:  db 'TIME xx:xx:xxxx', 0, 0, 0, 0
+ALARM_MSG:  db 'ALARM xx:xxxx', 0
+ALARM_UPDATE_MSG:  db 'ALARM', 0
+
+AM_MSG: db 'AM', 0
+PM_MSG: db 'PM', 0
+
+BLANK_DISPLAY: db '                ', 0
 
 ;---------------------------------;
 ; Routine to initialize the ISR   ;
@@ -234,7 +237,7 @@ Timer2_ISR_Done:
 ;---------------------------------;
 ; Main program. Includes hardware ;
 ; initialization and 'forever'    ;
-; Check_Toggle_Mode.                           ;
+; Check_Buttons.                           ;
 ;---------------------------------;
 main:
 	; Initialization
@@ -252,14 +255,13 @@ main:
     lcall LCD_4BIT
     ; For convenience a few handy macros are included in 'LCD_4bit.inc':
 	Set_Cursor(1, 1)
-    Send_Constant_String(#Time_Msg)
+    Send_Constant_String(#TIME_MSG)
 	Set_Cursor(2, 1)
-    Send_Constant_String(#Alarm_Msg)
+    Send_Constant_String(#ALARM_MSG)
 
     setb One_Second_Flag
 	clr Alarm_En_Flag
 	clr Alarm_Activate_Flag
-	clr Alarm_Toggle_Flag
 	setb Time_PM_Flag
 	setb Alarm_PM_Flag
 
@@ -283,43 +285,32 @@ main:
 	da a
 	mov BCD_Alarm_Minutes, a
 
-	; After initialization the program stays in this 'forever' Check_Toggle_Mode
-Check_Toggle_Mode:
-	; Wait and See Method.
-	jb TOGGLE_BUTTON, Check_Inc_Buttons ; Skip if Toggle Button is Not Pressed
-	Wait_Milli_Seconds(#50)
-	jb TOGGLE_BUTTON, Check_Inc_Buttons ; Skip if Toggle Button is Not Pressed
-	jnb TOGGLE_BUTTON, $ ; Jump to Same Instruction Once Button is Released.
-	lcall Toggle_Mode ; Toggle Mode
-Check_Inc_Buttons:
-	jnb One_Second_Flag, Check_Toggle_Mode
-	jb Alarm_Toggle_Flag, Check_Inc_Alarm
-	ljmp Check_Inc_Time
+	ljmp Update_LCD_Display
 
-Toggle_Mode:
-	cpl Alarm_Toggle_Flag
-	ret
-
+	; After initialization the program stays in this 'forever' Check_Buttons
+Check_Buttons:
+	sjmp Check_Inc_Alarm
 Check_Inc_Alarm:
-	sjmp Check_Inc_Alarm_Minutes
+	sjmp Check_Inc_Alarm_Set
 Check_Inc_Alarm_Set:
 	jb SET_BUTTON, Check_Inc_Alarm_Minutes
 	Wait_Milli_Seconds(#50)
 	jb SET_BUTTON, Check_Inc_Alarm_Minutes
-	jnb SET_BUTTON, $
+	jnb SET_BUTTON, $ ; Wait for Rising Edge
 	cpl Alarm_En_Flag
 Check_Inc_Alarm_Minutes:
 	jb MINUTES_BUTTON, Check_Inc_Alarm_Hours
 	Wait_Milli_Seconds(#50)
 	jb MINUTES_BUTTON, Check_Inc_Alarm_Hours
-	jnb MINUTES_BUTTON, $
+	jnb MINUTES_BUTTON, $ ; Wait for Rising Edge
 	lcall Inc_Alarm_Minutes ; Increment Alarm Minutes
 Check_Inc_Alarm_Hours:
 	jb HOURS_BUTTON, Update_LCD_Display
 	Wait_Milli_Seconds(#50)
 	jb HOURS_BUTTON, Update_LCD_Display
-	jnb HOURS_BUTTON, $
+	jnb HOURS_BUTTON, $ ; Wait for Rising Edge
 	lcall Inc_Alarm_Hours ; Increment Alarm Hours
+	ljmp Update_LCD_Display
 
 Check_Inc_Time:
 	clr TR2 ; Stop Timer 2
@@ -371,7 +362,12 @@ Display_Time_PM:
 	Send_Constant_String(#PM_MSG)
 	ljmp Display_Alarm
 Display_Alarm:
+	jb Alarm_En_Flag, Display_Alarm_En_On
+	ljmp Display_Alarm_En_Off
+Display_Alarm_En_On:
 	; Display Alarm
+	Set_Cursor(2, 1)
+	Send_Constant_String(#ALARM_UPDATE_MSG)
 	Set_Cursor(2, 7)
 	Display_BCD(BCD_Alarm_Hours)
 	Set_Cursor(2, 10)
@@ -381,11 +377,15 @@ Display_Alarm:
 Display_Alarm_AM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#AM_MSG)
-    ljmp Check_Toggle_Mode
+    ljmp Check_Buttons
 Display_Alarm_PM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#PM_MSG)
-    ljmp Check_Toggle_Mode
+    ljmp Check_Buttons
+Display_Alarm_En_Off:
+	Set_Cursor(2, 1)
+	Send_Constant_String(#BLANK_DISPLAY)
+	ljmp Check_Buttons
 
 ;-------------------------------;
 ; Increment Time on LCD Display ;
