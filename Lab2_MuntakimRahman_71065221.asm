@@ -205,8 +205,14 @@ Check_Alarm:
 	mov a, BCD_Minutes
 	cjne a, BCD_Alarm_Minutes, No_Alarm
 
-	mov a, Time_PM_Flag
-	cjne a, Alarm_PM_Flag, No_Alarm
+	; Check AM/PM Flag
+	clr a
+	mov b, a ; At this point A and B are zero
+	mov c, Time_PM_Flag
+	mov b.0, c
+	mov c, Alarm_PM_Flag
+	mov acc.0, c
+	cjne a, b, No_Alarm
 BEEP:
 	setb Alarm_Activate_Flag
 	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
@@ -273,14 +279,16 @@ main:
     Send_Constant_String(#Time_Msg)
 	Set_Cursor(2, 1)
     Send_Constant_String(#Alarm_Msg)
-    setb One_Second_Flag
 
+
+    setb One_Second_Flag
 	clr Alarm_En_Flag
 	clr Alarm_Activate_Flag
 	clr Alarm_Toggle_Flag
 	clr Time_PM_Flag
+	clr Alarm_PM_Flag
 
-	mov a, #0x11
+	mov a, #0x01
 	da a
 	mov BCD_Hours, a
 
@@ -370,20 +378,24 @@ Display_Time_AMPM:
 Display_Time_AM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#AM_MSG)
+	; Display_BCD(Time_PM_Flag)
 	ljmp Display_Alarm_AMPM
 Display_Time_PM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#PM_MSG)
+	; Display_BCD(Time_PM_Flag)
 	ljmp Display_Alarm_AMPM
 Display_Alarm_AMPM:
 	jb Alarm_PM_Flag, Display_Alarm_PM
 Display_Alarm_AM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#AM_MSG)
+	; Display_BCD(Alarm_PM_Flag)
     ljmp Toggle_Mode_Check
 Display_Alarm_PM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#PM_MSG)
+	; Display_BCD(Alarm_PM_Flag)
     ljmp Toggle_Mode_Check
 END
 `
