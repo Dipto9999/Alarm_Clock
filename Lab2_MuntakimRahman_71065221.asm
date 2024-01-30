@@ -37,7 +37,7 @@ TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 ;-----------------;
 SET_BUTTON           EQU P1.1 ; Pin 14
 
-DECREMENT_BUTTON     EQU P0.5 ; Pin 1
+DEC_BUTTON     EQU P0.5 ; Pin 1
 HOURS_BUTTON         EQU P3.0 ; Pin 5
 MINUTES_BUTTON       EQU P1.6 ; Pin 8
 SECONDS_BUTTON       EQU P1.5 ; Pin 10
@@ -90,6 +90,8 @@ BCD_Alarm_Minutes: DS 1
 BSEG
 
 One_Second_Flag: DBIT 1 ; Set Bit In ISR After Every 1000ms
+
+Dec_En_Flag: DBIT 1 ; Set Bit When Decrement Button is Pressed
 
 Alarm_En_Flag:   DBIT 1
 Alarm_On_Flag:   DBIT 1
@@ -209,9 +211,9 @@ Timer2_ISR:
 	; Increment 16-bit 1ms Counter.
 	INC Counter_1ms+0 ; Increment Low 8-bits
 	MOV A, Counter_1ms+0 ; Increment High 8-bits if Lower 8-bits Overflow
-	JNZ Inc_BCD
+	JNZ Update_BCD
 	INC Counter_1ms+1
-Inc_BCD:
+Update_BCD:
 	; Check if 1000ms Have Passed
 	MOV A, Counter_1ms+0
 	CJNE A, #LOW(1000), Timer2_ISR_Done ; Note : Changes Carry Flag
@@ -250,7 +252,7 @@ Continue_ISR:
 	CLR A
 	MOV Counter_1ms+0, A
 	MOV Counter_1ms+1, A
-	LCALL Inc_Time_Seconds
+	LCALL Update_Time_Seconds
 Timer2_ISR_Done:
 	POP PSW
 	POP ACC
@@ -275,15 +277,60 @@ Main:
     SETB EA   ; Enable Global Interrupts
     LCALL LCD_4BIT
 
+Init_Time:
     SETB One_Second_Flag
-Init_Display:
-	LCALL Init_Time
+	CLR Time_PM_Flag
+	CLR Dec_En_Flag
+
+	CLR TR2 ; Stop Timer 2
+
+	; Starting Display is 8:00:00 AM
+	MOV A, #0X08
+	MOV BCD_Time_Hours, A
+
+	MOV A, #0X00
+	MOV BCD_Time_Minutes, A
+
+	MOV A, #0X00
+	MOV BCD_Time_Seconds, A
+
+	Set_Cursor(1, 1)
+    Send_Constant_String(#TIME_INIT_MSG)
+Check_Set_Time:
+	JB SET_BUTTON, Init_Time_Display
+	Wait_Milli_Seconds(#50)
+	JB SET_BUTTON, Init_Time_Display
+	JNB SET_BUTTON, $ ; Wait for Rising Edge
+	LJMP Init_Time_End
+Init_Time_Display:
+	LCALL Update_Time_Display
+	LCALL Check_Dec_En
+Init_Time_Seconds:
+	JB SECONDS_BUTTON, Init_Time_Minutes
+	Wait_Milli_Seconds(#50)
+	JB SECONDS_BUTTON, Init_Time_Minutes
+	JNB SECONDS_BUTTON, $ ; Wait for Rising Edge
+	LCALL Update_Time_Seconds
+Init_Time_Minutes:
+	JB MINUTES_BUTTON, Init_Time_Hours
+	Wait_Milli_Seconds(#50)
+	JB MINUTES_BUTTON, Init_Time_Hours
+	JNB MINUTES_BUTTON, $ ; Wait for Rising Edge
+	LCALL Update_Time_Minutes
+Init_Time_Hours:
+	JB HOURS_BUTTON, Init_Time_Loop
+	Wait_Milli_Seconds(#50)
+	JB HOURS_BUTTON, Init_Time_Loop
+	JNB HOURS_BUTTON, $ ; Wait for Rising Edge
+	LCALL Update_Time_Hours
+Init_Time_Loop:
+	LJMP Check_Set_Time
+Init_Time_End:
+	SETB TR2 ; Set Timer 2
+
 Init_Alarm:
 	SETB Alarm_En_Flag
 	CLR Alarm_On_Flag
-
-	Set_Cursor(2, 1)
-    Send_Constant_String(#ALARM_INIT_MSG)
 
 	; Starting Alarm is 06:00 AM
 	CLR Alarm_PM_Flag
@@ -295,45 +342,38 @@ Init_Alarm:
 
 	LJMP Update_LCD_Display
 
-; Forever Loop to Check Buttons and Update LCD Display
+;------------------------------------------------------;
+; Forever Loop to Check Buttons and Update LCD Display ;
+;------------------------------------------------------;
 Check_Buttons:
-	SJMP Check_Inc_Alarm
-
-Check_Inc_Alarm:
-	SJMP Check_Alarm_En
-
-Check_Alarm_En:
-	JB SET_BUTTON, Check_Inc_Alarm_Minutes
-	Wait_Milli_Seconds(#50)
-	JB SET_BUTTON, Check_Inc_Alarm_Minutes
-	JNB SET_BUTTON, $ ; Wait for Rising Edge
-	CPL Alarm_En_Flag ; Toggle Alarm Enable Flag
-Check_Alarm_En_Done:
-	JB Alarm_En_Flag, Check_Inc_Alarm_Minutes
+	SJMP Check_Update_Alarm
+Check_Update_Alarm:
+	LCALL Check_Alarm_En
+	LCALL Check_Dec_En
+	JB Alarm_En_Flag, Check_Update_Alarm_Minutes
 	LJMP Update_LCD_Display
-Check_Inc_Alarm_Minutes:
-	JB MINUTES_BUTTON, Check_Inc_Alarm_Hours
+Check_Update_Alarm_Minutes:
+	JB MINUTES_BUTTON, Check_Update_Alarm_Hours
 	Wait_Milli_Seconds(#50)
-	JB MINUTES_BUTTON, Check_Inc_Alarm_Hours
+	JB MINUTES_BUTTON, Check_Update_Alarm_Hours
 	JNB MINUTES_BUTTON, $ ; Wait for Rising Edge
-	LCALL Inc_Alarm_Minutes ; Increment Alarm Minutes
-Check_Inc_Alarm_Hours:
+	LCALL Update_Alarm_Minutes ; Increment Alarm Minutes
+Check_Update_Alarm_Hours:
 	JB HOURS_BUTTON, Update_LCD_Display
 	Wait_Milli_Seconds(#50)
 	JB HOURS_BUTTON, Update_LCD_Display
 	JNB HOURS_BUTTON, $ ; Wait for Rising Edge
-	LCALL Inc_Alarm_Hours ; Increment Alarm Hours
-	LJMP Update_LCD_Display
-
-;--------------------;
-; Update LCD Display ;
-;--------------------;
+	LCALL Update_Alarm_Hours ; Increment Alarm Hours
+	SJMP Update_LCD_Display
 Update_LCD_Display:
     CLR One_Second_Flag
 	LCALL Update_Time_Display
 	LCALL Update_Alarm_Display
 	LJMP Check_Buttons
 
+;--------------------;
+; Update LCD Display ;
+;--------------------;
 Update_Time_Display:
 	; Display Time
 	Set_Cursor(1, 6)
@@ -381,98 +421,54 @@ Update_Alarm_En_Off:
 	Send_Constant_String(#BLANK_DISPLAY)
 	RET
 
-Init_Time:
-	CLR Time_PM_Flag
-	CLR TR2 ; Stop Timer 2
-
-	; Starting Display is 8:00:00 AM
-	MOV A, #0X08
-	MOV BCD_Time_Hours, A
-
-	MOV A, #0X00
-	MOV BCD_Time_Minutes, A
-
-	MOV A, #0X00
-	MOV BCD_Time_Seconds, A
-
-	Set_Cursor(1, 1)
-    Send_Constant_String(#TIME_INIT_MSG)
-Check_Set_Time:
-	JB SET_BUTTON, Init_Time_Display
-	Wait_Milli_Seconds(#50)
-	JB SET_BUTTON, Init_Time_Display
-	JNB SET_BUTTON, $ ; Wait for Rising Edge
-	LJMP Init_Time_End
-Init_Time_Display:
-	LCALL Update_Time_Display
-Init_Time_Seconds:
-	JB SECONDS_BUTTON, Init_Time_Minutes
-	Wait_Milli_Seconds(#50)
-	JB SECONDS_BUTTON, Init_Time_Minutes
-	JNB SECONDS_BUTTON, $ ; Wait for Rising Edge
-	LCALL Inc_Time_Seconds
-Init_Time_Minutes:
-	JB MINUTES_BUTTON, Init_Time_Hours
-	Wait_Milli_Seconds(#50)
-	JB MINUTES_BUTTON, Init_Time_Hours
-	JNB MINUTES_BUTTON, $ ; Wait for Rising Edge
-	LCALL Inc_Time_Minutes
-Init_Time_Hours:
-	JB HOURS_BUTTON, Init_Time_Loop
-	Wait_Milli_Seconds(#50)
-	JB HOURS_BUTTON, Init_Time_Loop
-	JNB HOURS_BUTTON, $ ; Wait for Rising Edge
-	LCALL Inc_Time_Hours
-Init_Time_Loop:
-	LJMP Check_Set_Time
-Init_Time_End:
-	SETB TR2 ; Set Timer 2
-	RET
-
 ;-------------------------------;
-; Increment Time on LCD Display ;
+; Update Time on LCD Display ;
 ;-------------------------------;
-Inc_Time_Hours:
+Update_Time_Hours:
 	MOV A, BCD_Time_Hours
 	ADD A, #1
 	DA A
 	MOV BCD_Time_Hours, A
 	SUBB A, #0X12
-	jc Inc_Time_Hours_Done
+	JC Update_Time_Hours_Done
 	JNZ Offset_Time_Hours
 Toggle_Time_AMPM:
 	MOV BCD_Time_Hours, #0X12
 	CPL Time_PM_Flag
-	SJMP Inc_Time_Hours_Done
+	SJMP Update_Time_Hours_Done
 Offset_Time_Hours:
 	MOV A, BCD_Time_Hours
 	SUBB A, #0X12
 	DA A
 	MOV BCD_Time_Hours, A
-Inc_Time_Hours_Done:
+Update_Time_Hours_Done:
 	RET
 
-Inc_Time_Minutes:
+Update_Time_Minutes:
 	MOV A, BCD_Time_Minutes
 	ADD A, #1
 	DA A
 	MOV BCD_Time_Minutes, A
-	CJNE A, #0X60, Inc_Time_Minutes_Done
+	CJNE A, #0X60, Update_Time_Minutes_Done
 	MOV BCD_Time_Minutes, #0X00
-	LCALL Inc_Time_Hours
-Inc_Time_Minutes_Done:
+	LCALL Update_Time_Hours
+Update_Time_Minutes_Done:
 	RET
 
-Inc_Time_Seconds:
+Update_Time_Seconds:
 	MOV A, BCD_Time_Seconds
 	ADD A, #1
 	DA A
 	MOV BCD_Time_Seconds, A
-	CJNE A, #0X60, Inc_Time_Seconds_Done
+	CJNE A, #0X60, Update_Time_Seconds_Done
 	MOV BCD_Time_Seconds, #0X00
-	LCALL Inc_Time_Minutes
-Inc_Time_Seconds_Done:
+	LCALL Update_Time_Minutes
+Update_Time_Seconds_Done:
 	RET
+
+Update_Alarm_Hours:
+	JNB Dec_En_Flag, Inc_Alarm_Hours
+	LJMP Dec_Alarm_Hours
 
 Inc_Alarm_Hours:
 	MOV A, BCD_Alarm_Hours
@@ -480,30 +476,88 @@ Inc_Alarm_Hours:
 	DA A
 	MOV BCD_Alarm_Hours, A
 	SUBB A, #0X12
-	jc Inc_Alarm_Hours_Done
+	JC Update_Alarm_Hours_Done
 	JNZ Offset_Alarm_Hours
 Toggle_Alarm_AMPM:
 	MOV BCD_Alarm_Hours, #0X12
 	CPL Alarm_PM_Flag
-	SJMP Inc_Alarm_Hours_Done
+	SJMP Update_Alarm_Hours_Done
 Offset_Alarm_Hours:
 	MOV A, BCD_Alarm_Hours
 	SUBB A, #0X12
 	DA A
 	MOV BCD_Alarm_Hours, A
-Inc_Alarm_Hours_Done:
+	SJMP Update_Alarm_Hours_Done
+Update_Alarm_Hours_Done:
 	RET
+
+Dec_Alarm_Hours:
+	MOV A, BCD_Alarm_Hours
+	CJNE A, #0X12, Dec_Alarm_Hours_Continued
+Rewind_Alarm_AMPM:
+	MOV BCD_Alarm_Hours, #0X11
+	CPL Alarm_PM_Flag
+	SJMP Update_Alarm_Hours_Done
+Dec_Alarm_Hours_Continued:
+	ADD A, #0X99 ; Adding 10-Complement of -1
+	DA A
+	MOV BCD_Alarm_Hours, A
+	CJNE A, #0X00, Update_Alarm_Hours_Done
+Rewind_Alarm_Hours:
+	MOV BCD_Alarm_Hours, #0X12
+	SJMP Update_Alarm_Hours_Done
+
+
+Update_Alarm_Minutes:
+	JNB Dec_En_Flag, Inc_Alarm_Minutes
+	LJMP Dec_Alarm_Minutes
 
 Inc_Alarm_Minutes:
 	MOV A, BCD_Alarm_Minutes
 	ADD A, #1
 	DA A
 	MOV BCD_Alarm_Minutes, A
-	CJNE A, #0X60, Inc_Alarm_Minutes_Done
+	CJNE A, #0X60, Update_Alarm_Minutes_Done
+	SJMP Reset_Alarm_Minutes
+Reset_Alarm_Minutes:
 	MOV BCD_Alarm_Minutes, #0X00
-	LCALL Inc_Alarm_Hours
-Inc_Alarm_Minutes_Done:
+	LCALL Update_Alarm_Hours
+	SJMP Update_Alarm_Minutes_Done
+Update_Alarm_Minutes_Done:
 	RET
 
+Dec_Alarm_Minutes:
+	MOV A, BCD_Alarm_Minutes
+	JZ Rewind_Alarm_Minutes
+	ADD A, #0X99 ; Adding 10-Complement of -1
+	DA A
+	MOV BCD_Alarm_Minutes, A
+	CJNE A, #0X00, Update_Alarm_Minutes_Done
+	SJMP Reset_Alarm_Minutes
+Rewind_Alarm_Minutes:
+	MOV BCD_Alarm_Minutes, #0X59
+	LCALL Update_Alarm_Hours
+	SJMP Update_Alarm_Minutes_Done
+
+;----------------;
+; Enable/Disable ;
+;----------------;
+Check_Alarm_En:
+	JB SET_BUTTON, Check_Alarm_En_Done
+	Wait_Milli_Seconds(#50)
+	JB SET_BUTTON, Check_Alarm_En_Done
+	JNB SET_BUTTON, $ ; Wait for Rising Edge
+	CPL Alarm_En_Flag ; Toggle Alarm Enable Flag
+Check_Alarm_En_Done:
+	RET
+
+Check_Dec_En:
+	JB DEC_BUTTON, Check_Dec_En_Done
+	Wait_Milli_Seconds(#50)
+	JB DEC_BUTTON, Check_Dec_En_Done
+	JNB DEC_BUTTON, $ ; Wait for Rising Edge
+	CPL Dec_En_Flag
+Check_Dec_En_Done:
+	RET
 END
 `
