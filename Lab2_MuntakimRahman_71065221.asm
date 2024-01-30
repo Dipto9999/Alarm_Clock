@@ -420,17 +420,32 @@ Update_Time_0000:
 	Display_BCD(#0X00)
 	SJMP Update_Time_Display_End
 Update_Time_Hours_24_PM:
+	ADD A, #0X12
 	Set_Cursor(1, 6)
-	ADD A, #12
-	DA A
 	Display_BCD(A)
-	CJNE A, #0X24, Update_Time_Display_End
+	MOV A, BCD_Time_Hours
+	SJMP Check_Time_2000
+Check_Time_2000:
+	CJNE A, #0X08, Check_Time_2100
+	SJMP Update_Time_2000
+Check_Time_2100:
+	CJNE A, #0X09, Check_Time_1200
+	SJMP Update_Time_2100
+Check_Time_1200:
+	CJNE A, #0X12, Update_Time_Display_End
 	SJMP Update_Time_1200
+Update_Time_2000:
+	Set_Cursor(1, 6)
+	Display_BCD(#0x20)
+	LJMP Update_Time_Display_End
+Update_Time_2100:
+	Set_Cursor(1, 6)
+	Display_BCD(#0x021)
+	LJMP Update_Time_Display_End
 Update_Time_1200:
 	Set_Cursor(1, 6)
 	Display_BCD(#0X12)
-	SJMP Update_Time_Display_End
-
+	LJMP Update_Time_Display_End
 
 Update_Alarm_Display:
 	JB Alarm_En_Flag, Update_Alarm_En_On
@@ -476,9 +491,9 @@ Update_Alarm_0000:
 	Display_BCD(#0X00)
 	SJMP Update_Alarm_Display_End
 Update_Alarm_Hours_24_PM:
-	Set_Cursor(2, 7)
 	ADD A, #12
 	DA A
+	Set_Cursor(2, 7)
 	Display_BCD(A)
 	CJNE A, #0X24, Update_Alarm_Display_End
 	SJMP Update_Alarm_1200
