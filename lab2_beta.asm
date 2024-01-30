@@ -525,7 +525,7 @@ Dec_Time_Seconds:
 Rewind_Time_Seconds:
 	MOV BCD_Time_Seconds, #0X59
 	LCALL Update_Time_Minutes
-	SJMP Update_Alarm_Minutes_Done
+	SJMP Update_Time_Seconds_Done
 Dec_Time_Seconds_Continued:
 	ADD A, #0X99 ; Adding 10-Complement of -1
 	DA A

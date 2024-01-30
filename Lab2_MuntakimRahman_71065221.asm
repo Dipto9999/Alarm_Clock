@@ -35,9 +35,10 @@ TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 ;-----------------;
 ; Pin Definitions ;
 ;-----------------;
-SET_BUTTON           EQU P1.1 ; Pin 14
+SET_BUTTON           EQU P1.0 ; Pin 15
+HOUR_FORMAT_BUTTON   EQU P1.1 ; Pin 14
 
-DEC_BUTTON     EQU P0.5 ; Pin 1
+DEC_BUTTON           EQU P0.5 ; Pin 1
 HOURS_BUTTON         EQU P3.0 ; Pin 5
 MINUTES_BUTTON       EQU P1.6 ; Pin 8
 SECONDS_BUTTON       EQU P1.5 ; Pin 10
@@ -80,11 +81,11 @@ DSEG AT 0X30
 
 Counter_1ms:       DS 2 ; Used to Determine When 1000ms has Passed
 
-BCD_Time_Hours:    DS 1
+BCD_Time_Hours: DS 1
 BCD_Time_Minutes:  DS 1
 BCD_Time_Seconds:  DS 1
 
-BCD_Alarm_Hours:   DS 1
+BCD_Alarm_Hours: DS 1
 BCD_Alarm_Minutes: DS 1
 
 BSEG
@@ -99,6 +100,7 @@ Alarm_On_Flag:   DBIT 1
 
 Time_PM_Flag:    DBIT 1 ; Set Bit When Time is in PM
 Alarm_PM_Flag:   DBIT 1 ; Set Bit When Alarm is in PM
+Hour_Format_Flag:    DBIT 1 ; Set Bit When Time is in 24-Hour Mode
 
 CSEG
 
@@ -283,6 +285,7 @@ Init_Time:
     SETB One_Second_Flag
 	CLR Time_PM_Flag
 	CLR Dec_En_Flag
+	CLR Hour_Format_Flag
 
 	CLR TR2 ; Stop Timer 2
 
@@ -305,6 +308,7 @@ Check_Set_Time:
 	JNB SET_BUTTON, $ ; Wait for Rising Edge
 	LJMP Init_Time_End
 Init_Time_Display:
+	LCALL Check_Hour_Format
 	LCALL Update_Time_Display
 	LCALL Check_Dec_En
 Init_Time_Seconds:
@@ -369,6 +373,7 @@ Check_Update_Alarm_Hours:
 	SJMP Update_LCD_Display
 Update_LCD_Display:
     CLR One_Second_Flag
+	LCALL Check_Hour_Format
 	LCALL Update_Time_Display
 	LCALL Update_Alarm_Display
 	LJMP Check_Buttons
@@ -378,22 +383,54 @@ Update_LCD_Display:
 ;--------------------;
 Update_Time_Display:
 	; Display Time
-	Set_Cursor(1, 6)
-	Display_BCD(BCD_Time_Hours)
 	Set_Cursor(1, 9)
 	Display_BCD(BCD_Time_Minutes)
 	Set_Cursor(1, 12)
 	Display_BCD(BCD_Time_Seconds)
 
+	JB Hour_Format_Flag, Update_Time_Hours_24
+	SJMP Update_Time_Hours_12
+Update_Time_Hours_12:
+	Set_Cursor(1, 6)
+	Display_BCD(BCD_Time_Hours)
 	JB Time_PM_Flag, Update_Time_PM
 Update_Time_AM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#AM_MSG)
-	RET
+	SJMP Update_Time_Display_End
 Update_Time_PM:
 	Set_Cursor(1, 14)
 	Send_Constant_String(#PM_MSG)
+	SJMP Update_Time_Display_End
+Update_Time_Display_End:
 	RET
+
+Update_Time_Hours_24:
+	Set_Cursor(1, 14)
+	Send_Constant_String(#BLANK_DISPLAY)
+	MOV A, BCD_Time_Hours
+	JB Time_PM_Flag, Update_Time_Hours_24_PM
+Update_Time_Hours_24_AM:
+	Set_Cursor(1, 6)
+	Display_BCD(A)
+	CJNE A, #0X12, Update_Time_Display_End
+	SJMP Update_Time_0000
+Update_Time_0000:
+	Set_Cursor(1, 6)
+	Display_BCD(#0X00)
+	SJMP Update_Time_Display_End
+Update_Time_Hours_24_PM:
+	Set_Cursor(1, 6)
+	ADD A, #12
+	DA A
+	Display_BCD(A)
+	CJNE A, #0X24, Update_Time_Display_End
+	SJMP Update_Time_1200
+Update_Time_1200:
+	Set_Cursor(1, 6)
+	Display_BCD(#0X12)
+	SJMP Update_Time_Display_End
+
 
 Update_Alarm_Display:
 	JB Alarm_En_Flag, Update_Alarm_En_On
@@ -402,26 +439,58 @@ Update_Alarm_En_On:
 	; Display Alarm
 	Set_Cursor(2, 1)
 	Send_Constant_String(#ALARM_UPDATE_MSG)
-	Set_Cursor(2, 7)
-	Display_BCD(BCD_Alarm_Hours)
 	Set_Cursor(2, 9)
 	Send_Constant_String(#COLON)
 	Set_Cursor(2, 10)
 	Display_BCD(BCD_Alarm_Minutes)
 
+	JB Hour_Format_Flag, Update_Alarm_Hours_24
+	SJMP Update_Alarm_Hours_12
+Update_Alarm_Hours_12:
+	Set_Cursor(2, 7)
+	Display_BCD(BCD_Alarm_Hours)
 	JB Alarm_PM_Flag, Update_Alarm_PM
 Update_Alarm_AM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#AM_MSG)
-    RET
+    SJMP Update_Alarm_Display_End
 Update_Alarm_PM:
 	Set_Cursor(2, 12)
 	Send_Constant_String(#PM_MSG)
-    RET
+    SJMP Update_Alarm_Display_End
+Update_Alarm_Display_End:
+	RET
+
+Update_Alarm_Hours_24:
+	Set_Cursor(2, 12)
+	Send_Constant_String(#BLANK_DISPLAY)
+	MOV A, BCD_Alarm_Hours
+	JB Alarm_PM_Flag, Update_Alarm_Hours_24_PM
+Update_Alarm_Hours_24_AM:
+	Set_Cursor(2, 7)
+	Display_BCD(A)
+	CJNE A, #0X12, Update_Alarm_Display_End
+	SJMP Update_Alarm_0000
+Update_Alarm_0000:
+	Set_Cursor(2, 7)
+	Display_BCD(#0X00)
+	SJMP Update_Alarm_Display_End
+Update_Alarm_Hours_24_PM:
+	Set_Cursor(2, 7)
+	ADD A, #12
+	DA A
+	Display_BCD(A)
+	CJNE A, #0X24, Update_Alarm_Display_End
+	SJMP Update_Alarm_1200
+Update_Alarm_1200:
+	Set_Cursor(2, 7)
+	Display_BCD(#0X12)
+	SJMP Update_Alarm_Display_End
+
 Update_Alarm_En_Off:
 	Set_Cursor(2, 1)
 	Send_Constant_String(#BLANK_DISPLAY)
-	RET
+	LJMP Update_Alarm_Display_End
 
 ;-------------------------------;
 ; Update Time on LCD Display ;
@@ -624,6 +693,15 @@ Check_Dec_En:
 	JNB DEC_BUTTON, $ ; Wait for Rising Edge
 	CPL Dec_En_Flag
 Check_Dec_En_Done:
+	RET
+
+Check_Hour_Format:
+	JB HOUR_FORMAT_BUTTON, Check_Hour_Format_Done
+	Wait_Milli_Seconds(#50)
+	JB HOUR_FORMAT_BUTTON, Check_Hour_Format_Done
+	JNB HOUR_FORMAT_BUTTON, $ ; Wait for Rising Edge
+	CPL Hour_Format_Flag
+Check_Hour_Format_Done:
 	RET
 END
 `
