@@ -358,29 +358,26 @@ Update_Alarm_En_Off:
 	ret
 
 Init_Time:
-	setb Time_PM_Flag
+	clr Time_PM_Flag
 	clr TR2 ; Stop Timer 2
 
-	; Starting Display is 12:59:45 PM
+	; Starting Display is 1:00:00 AM
 	mov a, #0x12
-	da a
 	mov BCD_Time_Hours, a
 
-	mov a, #0x59
-	da a
+	mov a, #0x00
 	mov BCD_Time_Minutes, a
 
-	mov a, #0x45
-	da a
+	mov a, #0x00
 	mov BCD_Time_Seconds, a
 
 	Set_Cursor(1, 1)
     Send_Constant_String(#TIME_MSG)
 Check_Set_Time:
 	jb SET_BUTTON, Init_Time_Display
-	setb TR2 ; Start Timer 2
+	; setb TR2 ; Start Timer 2
 	Wait_Milli_Seconds(#50)
-	clr TR2 ; Stop Timer 2
+	; clr TR2 ; Stop Timer 2
 	jb SET_BUTTON, Init_Time_Display
 	jnb SET_BUTTON, $ ; Wait for Rising Edge
 	ljmp Init_Time_End
