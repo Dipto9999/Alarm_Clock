@@ -427,7 +427,12 @@ Update_Alarm_En_Off:
 ; Update Time on LCD Display ;
 ;-------------------------------;
 Update_Time_Hours:
-		MOV A, BCD_Time_Hours
+	JNB Init_Time_Flag, Inc_Time_Hours
+	JNB Dec_En_Flag, Inc_Time_Hours
+	LJMP Dec_Time_Hours
+
+Inc_Time_Hours:
+	MOV A, BCD_Time_Hours
 	ADD A, #1
 	DA A
 	MOV BCD_Time_Hours, A
@@ -446,27 +451,86 @@ Offset_Time_Hours:
 Update_Time_Hours_Done:
 	RET
 
+Dec_Time_Hours:
+	MOV A, BCD_Time_Hours
+	CJNE A, #0X12, Dec_Time_Hours_Continued
+Rewind_Time_AMPM:
+	MOV BCD_Time_Hours, #0X11
+	CPL Time_PM_Flag
+	SJMP Update_Time_Hours_Done
+Dec_Time_Hours_Continued:
+	ADD A, #0X99 ; Adding 10-Complement of -1
+	DA A
+	MOV BCD_Time_Hours, A
+	JNZ Update_Time_Hours_Done
+Rewind_Time_Hours:
+	MOV BCD_Time_Hours, #0X12
+	SJMP Update_Time_Hours_Done
+
+
 Update_Time_Minutes:
-		MOV A, BCD_Time_Minutes
+	JNB Init_Time_Flag, Inc_Time_Minutes
+	JNB Dec_En_Flag, Inc_Time_Minutes
+	LJMP Dec_Time_Minutes
+
+Inc_Time_Minutes:
+	MOV A, BCD_Time_Minutes
 	ADD A, #1
 	DA A
 	MOV BCD_Time_Minutes, A
 	CJNE A, #0X60, Update_Time_Minutes_Done
-		MOV BCD_Time_Minutes, #0X00
+	SJMP Reset_Time_Minutes
+Reset_Time_Minutes:
+	MOV BCD_Time_Minutes, #0X00
 	LCALL Update_Time_Hours
-	Update_Time_Minutes_Done:
+	SJMP Update_Time_Minutes_Done
+Update_Time_Minutes_Done:
 	RET
 
+Dec_Time_Minutes:
+	MOV A, BCD_Time_Minutes
+	JNZ Dec_Time_Minutes_Continued
+Rewind_Time_Minutes:
+	MOV BCD_Time_Minutes, #0X59
+	LCALL Update_Time_Hours
+	SJMP Update_Time_Minutes_Done
+Dec_Time_Minutes_Continued:
+	ADD A, #0X99 ; Adding 10-Complement of -1
+	DA A
+	MOV BCD_Time_Minutes, A
+	SJMP Update_Time_Minutes_Done
+
 Update_Time_Seconds:
-		MOV A, BCD_Time_Seconds
+	JNB Init_Time_Flag, Inc_Time_Seconds
+	JNB Dec_En_Flag, Inc_Time_Seconds
+	LJMP Dec_Time_Seconds
+
+Inc_Time_Seconds:
+	MOV A, BCD_Time_Seconds
 	ADD A, #1
 	DA A
 	MOV BCD_Time_Seconds, A
 	CJNE A, #0X60, Update_Time_Seconds_Done
-		MOV BCD_Time_Seconds, #0X00
+	SJMP Reset_Time_Seconds
+Reset_Time_Seconds:
+	MOV BCD_Time_Seconds, #0X00
 	LCALL Update_Time_Minutes
-	Update_Time_Seconds_Done:
+	SJMP Update_Time_Seconds_Done
+Update_Time_Seconds_Done:
 	RET
+
+Dec_Time_Seconds:
+	MOV A, BCD_Time_Seconds
+	JNZ Dec_Time_Seconds_Continued
+Rewind_Time_Seconds:
+	MOV BCD_Time_Seconds, #0X59
+	LCALL Update_Time_Minutes
+	SJMP Update_Alarm_Minutes_Done
+Dec_Time_Seconds_Continued:
+	ADD A, #0X99 ; Adding 10-Complement of -1
+	DA A
+	MOV BCD_Time_Seconds, A
+	SJMP Update_Time_Seconds_Done
 
 Update_Alarm_Hours:
 	JNB Dec_En_Flag, Inc_Alarm_Hours
