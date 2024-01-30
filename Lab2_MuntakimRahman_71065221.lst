@@ -261,7 +261,7 @@
 01B5 E4         253            CLR A
 01B6 F530       254            MOV Counter_1ms+0, A
 01B8 F531       255            MOV Counter_1ms+1, A
-01BA 12042C     256            LCALL Update_Time_Seconds
+01BA 12046D     256            LCALL Update_Time_Seconds
 01BD            257   Timer2_ISR_Done:
 01BD D0D0       258            POP PSW
 01BF D0E0       259            POP ACC
@@ -328,7 +328,7 @@
 0226 020271     306            LJMP Init_Time_End
 0229            307   Init_Time_Display:
 0229 1202CB     308            LCALL Update_Time_Display
-022C 1204BC     309            LCALL Check_Dec_En
+022C 12051D     309            LCALL Check_Dec_En
 022F            310   Init_Time_Seconds:
 022F 209512     311            JB SECONDS_BUTTON, Init_Time_Minutes
 0232 C002       312            push AR2
@@ -337,7 +337,7 @@
 0239 D002       312            pop AR2
 023B 209506     313            JB SECONDS_BUTTON, Init_Time_Minutes
 023E 3095FD     314            JNB SECONDS_BUTTON, $ ; Wait for Rising Edge
-0241 12042C     315            LCALL Update_Time_Seconds
+0241 12046D     315            LCALL Update_Time_Seconds
 0244            316   Init_Time_Minutes:
 0244 209612     317            JB MINUTES_BUTTON, Init_Time_Hours
 0247 C002       318            push AR2
@@ -346,7 +346,7 @@
 024E D002       318            pop AR2
 0250 209606     319            JB MINUTES_BUTTON, Init_Time_Hours
 0253 3096FD     320            JNB MINUTES_BUTTON, $ ; Wait for Rising Edge
-0256 12041B     321            LCALL Update_Time_Minutes
+0256 12043C     321            LCALL Update_Time_Minutes
 0259            322   Init_Time_Hours:
 0259 20B012     323            JB HOURS_BUTTON, Init_Time_Loop
 025C C002       324            push AR2
@@ -381,8 +381,8 @@
 0286            350   Check_Buttons:
 0286 8000       351            SJMP Check_Update_Alarm
 0288            352   Check_Update_Alarm:
-0288 1204A7     353            LCALL Check_Alarm_En
-028B 1204BC     354            LCALL Check_Dec_En
+0288 120508     353            LCALL Check_Alarm_En
+028B 12051D     354            LCALL Check_Dec_En
 028E 200303     355            JB Alarm_En_Flag, Check_Update_Alarm_Minutes
 0291 0202C0     356            LJMP Update_LCD_Display
 0294            357   Check_Update_Alarm_Minutes:
@@ -393,7 +393,7 @@
 029E D002       359            pop AR2
 02A0 209606     360            JB MINUTES_BUTTON, Check_Update_Alarm_Hours
 02A3 3096FD     361            JNB MINUTES_BUTTON, $ ; Wait for Rising Edge
-02A6 120479     362            LCALL Update_Alarm_Minutes ; Increment Alarm Minutes
+02A6 1204DA     362            LCALL Update_Alarm_Minutes ; Increment Alarm Minutes
 02A9            363   Check_Update_Alarm_Hours:
 02A9 20B014     364            JB HOURS_BUTTON, Update_LCD_Display
 02AC C002       365            push AR2
@@ -402,7 +402,7 @@
 02B3 D002       365            pop AR2
 02B5 20B008     366            JB HOURS_BUTTON, Update_LCD_Display
 02B8 30B0FD     367            JNB HOURS_BUTTON, $ ; Wait for Rising Edge
-02BB 12043D     368            LCALL Update_Alarm_Hours ; Increment Alarm Hours
+02BB 12049E     368            LCALL Update_Alarm_Hours ; Increment Alarm Hours
 02BE 8000       369            SJMP Update_LCD_Display
 02C0            370   Update_LCD_Display:
 02C0 C200       371       CLR One_Second_Flag
@@ -577,144 +577,208 @@
 03FF            427   ; Update Time on LCD Display ;
 03FF            428   ;-------------------------------;
 03FF            429   Update_Time_Hours:
-03FF E532       430                    MOV A, BCD_Time_Hours
-0401 2401       431            ADD A, #1
-0403 D4         432            DA A
-0404 F532       433            MOV BCD_Time_Hours, A
-0406 9412       434            SUBB A, #0X12
-0408 4010       435            JC Update_Time_Hours_Done
-040A 7007       436            JNZ Offset_Time_Hours
-040C            437   Toggle_Time_AMPM:
-040C 753212     438            MOV BCD_Time_Hours, #0X12
-040F B205       439            CPL Time_PM_Flag
-0411 8007       440            SJMP Update_Time_Hours_Done
-0413            441   Offset_Time_Hours:
-0413 E532       442            MOV A, BCD_Time_Hours
-0415 9412       443            SUBB A, #0X12
-0417 D4         444            DA A
-0418 F532       445            MOV BCD_Time_Hours, A
-041A            446   Update_Time_Hours_Done:
-041A 22         447            RET
-041B            448   
-041B            449   Update_Time_Minutes:
-041B E533       450                    MOV A, BCD_Time_Minutes
-041D 2401       451            ADD A, #1
-041F D4         452            DA A
-0420 F533       453            MOV BCD_Time_Minutes, A
-0422 B46006     454            CJNE A, #0X60, Update_Time_Minutes_Done
-0425 753300     455                    MOV BCD_Time_Minutes, #0X00
-0428 1203FF     456            LCALL Update_Time_Hours
-042B            457            Update_Time_Minutes_Done:
-042B 22         458            RET
-042C            459   
-042C            460   Update_Time_Seconds:
-042C E534       461                    MOV A, BCD_Time_Seconds
-042E 2401       462            ADD A, #1
-0430 D4         463            DA A
-0431 F534       464            MOV BCD_Time_Seconds, A
-0433 B46006     465            CJNE A, #0X60, Update_Time_Seconds_Done
-0436 753400     466                    MOV BCD_Time_Seconds, #0X00
-0439 12041B     467            LCALL Update_Time_Minutes
-043C            468            Update_Time_Seconds_Done:
-043C 22         469            RET
-043D            470   
-043D            471   Update_Alarm_Hours:
-043D 300203     472            JNB Dec_En_Flag, Inc_Alarm_Hours
-0440 020461     473            LJMP Dec_Alarm_Hours
-0443            474   
-0443            475   Inc_Alarm_Hours:
-0443 E535       476            MOV A, BCD_Alarm_Hours
-0445 2401       477            ADD A, #1
-0447 D4         478            DA A
-0448 F535       479            MOV BCD_Alarm_Hours, A
-044A 9412       480            SUBB A, #0X12
-044C 4012       481            JC Update_Alarm_Hours_Done
-044E 7007       482            JNZ Offset_Alarm_Hours
-0450            483   Toggle_Alarm_AMPM:
-0450 753512     484            MOV BCD_Alarm_Hours, #0X12
-0453 B206       485            CPL Alarm_PM_Flag
-0455 8009       486            SJMP Update_Alarm_Hours_Done
-0457            487   Offset_Alarm_Hours:
-0457 E535       488            MOV A, BCD_Alarm_Hours
-0459 9412       489            SUBB A, #0X12
-045B D4         490            DA A
-045C F535       491            MOV BCD_Alarm_Hours, A
-045E 8000       492            SJMP Update_Alarm_Hours_Done
-0460            493   Update_Alarm_Hours_Done:
-0460 22         494            RET
-0461            495   
-0461            496   Dec_Alarm_Hours:
-0461 E535       497            MOV A, BCD_Alarm_Hours
-0463 B41207     498            CJNE A, #0X12, Dec_Alarm_Hours_Continued
-0466            499   Rewind_Alarm_AMPM:
-0466 753511     500            MOV BCD_Alarm_Hours, #0X11
-0469 B206       501            CPL Alarm_PM_Flag
-046B 80F3       502            SJMP Update_Alarm_Hours_Done
-046D            503   Dec_Alarm_Hours_Continued:
-046D 2499       504            ADD A, #0X99 ; Adding 10-Complement of -1
-046F D4         505            DA A
-0470 F535       506            MOV BCD_Alarm_Hours, A
-0472 70EC       507            JNZ Update_Alarm_Hours_Done
-0474            508   Rewind_Alarm_Hours:
-0474 753512     509            MOV BCD_Alarm_Hours, #0X12
-0477 80E7       510            SJMP Update_Alarm_Hours_Done
-0479            511   
-0479            512   
-0479            513   Update_Alarm_Minutes:
-0479 300203     514            JNB Dec_En_Flag, Inc_Alarm_Minutes
-047C 020494     515            LJMP Dec_Alarm_Minutes
-047F            516   
-047F            517   Inc_Alarm_Minutes:
-047F E536       518            MOV A, BCD_Alarm_Minutes
-0481 2401       519            ADD A, #1
-0483 D4         520            DA A
-0484 F536       521            MOV BCD_Alarm_Minutes, A
-0486 B4600A     522            CJNE A, #0X60, Update_Alarm_Minutes_Done
-0489 8000       523            SJMP Reset_Alarm_Minutes
-048B            524   Reset_Alarm_Minutes:
-048B 753600     525            MOV BCD_Alarm_Minutes, #0X00
-048E 12043D     526            LCALL Update_Alarm_Hours
-0491 8000       527            SJMP Update_Alarm_Minutes_Done
-0493            528   Update_Alarm_Minutes_Done:
-0493 22         529            RET
-0494            530   
-0494            531   Dec_Alarm_Minutes:
-0494 E536       532            MOV A, BCD_Alarm_Minutes
-0496 7008       533            JNZ Dec_Alarm_Minutes_Continued
-0498            534   Rewind_Alarm_Minutes:
-0498 753659     535            MOV BCD_Alarm_Minutes, #0X59
-049B 12043D     536            LCALL Update_Alarm_Hours
-049E 80F3       537            SJMP Update_Alarm_Minutes_Done
-04A0            538   Dec_Alarm_Minutes_Continued:
-04A0 2499       539            ADD A, #0X99 ; Adding 10-Complement of -1
-04A2 D4         540            DA A
-04A3 F536       541            MOV BCD_Alarm_Minutes, A
-04A5 80EC       542            SJMP Update_Alarm_Minutes_Done
-04A7            543   
-04A7            544   ;----------------;
-04A7            545   ; Enable/Disable ;
-04A7            546   ;----------------;
-04A7            547   Check_Alarm_En:
-04A7 209111     548            JB SET_BUTTON, Check_Alarm_En_Done
-04AA C002       549            push AR2
-04AC 7A32       549            mov R2, #50
-04AE 120038     549            lcall ?Wait_Milli_Seconds
-04B1 D002       549            pop AR2
-04B3 209105     550            JB SET_BUTTON, Check_Alarm_En_Done
-04B6 3091FD     551            JNB SET_BUTTON, $ ; Wait for Rising Edge
-04B9 B203       552            CPL Alarm_En_Flag ; Toggle Alarm Enable Flag
-04BB            553   Check_Alarm_En_Done:
-04BB 22         554            RET
-04BC            555   
-04BC            556   Check_Dec_En:
-04BC 208511     557            JB DEC_BUTTON, Check_Dec_En_Done
-04BF C002       558            push AR2
-04C1 7A32       558            mov R2, #50
-04C3 120038     558            lcall ?Wait_Milli_Seconds
-04C6 D002       558            pop AR2
-04C8 208505     559            JB DEC_BUTTON, Check_Dec_En_Done
-04CB 3085FD     560            JNB DEC_BUTTON, $ ; Wait for Rising Edge
-04CE B202       561            CPL Dec_En_Flag
-04D0            562   Check_Dec_En_Done:
-04D0 22         563            RET
-04D1            564   END
+03FF 300106     430            JNB Init_Time_Flag, Inc_Time_Hours
+0402 300203     431            JNB Dec_En_Flag, Inc_Time_Hours
+0405 020424     432            LJMP Dec_Time_Hours
+0408            433   
+0408            434   Inc_Time_Hours:
+0408 E532       435            MOV A, BCD_Time_Hours
+040A 2401       436            ADD A, #1
+040C D4         437            DA A
+040D F532       438            MOV BCD_Time_Hours, A
+040F 9412       439            SUBB A, #0X12
+0411 4010       440            JC Update_Time_Hours_Done
+0413 7007       441            JNZ Offset_Time_Hours
+0415            442   Toggle_Time_AMPM:
+0415 753212     443            MOV BCD_Time_Hours, #0X12
+0418 B205       444            CPL Time_PM_Flag
+041A 8007       445            SJMP Update_Time_Hours_Done
+041C            446   Offset_Time_Hours:
+041C E532       447            MOV A, BCD_Time_Hours
+041E 9412       448            SUBB A, #0X12
+0420 D4         449            DA A
+0421 F532       450            MOV BCD_Time_Hours, A
+0423            451   Update_Time_Hours_Done:
+0423 22         452            RET
+0424            453   
+0424            454   Dec_Time_Hours:
+0424 E532       455            MOV A, BCD_Time_Hours
+0426 B41207     456            CJNE A, #0X12, Dec_Time_Hours_Continued
+0429            457   Rewind_Time_AMPM:
+0429 753211     458            MOV BCD_Time_Hours, #0X11
+042C B205       459            CPL Time_PM_Flag
+042E 80F3       460            SJMP Update_Time_Hours_Done
+0430            461   Dec_Time_Hours_Continued:
+0430 2499       462            ADD A, #0X99 ; Adding 10-Complement of -1
+0432 D4         463            DA A
+0433 F532       464            MOV BCD_Time_Hours, A
+0435 70EC       465            JNZ Update_Time_Hours_Done
+0437            466   Rewind_Time_Hours:
+0437 753212     467            MOV BCD_Time_Hours, #0X12
+043A 80E7       468            SJMP Update_Time_Hours_Done
+043C            469   
+043C            470   
+043C            471   Update_Time_Minutes:
+043C 300106     472            JNB Init_Time_Flag, Inc_Time_Minutes
+043F 300203     473            JNB Dec_En_Flag, Inc_Time_Minutes
+0442 02045A     474            LJMP Dec_Time_Minutes
+0445            475   
+0445            476   Inc_Time_Minutes:
+0445 E533       477            MOV A, BCD_Time_Minutes
+0447 2401       478            ADD A, #1
+0449 D4         479            DA A
+044A F533       480            MOV BCD_Time_Minutes, A
+044C B4600A     481            CJNE A, #0X60, Update_Time_Minutes_Done
+044F 8000       482            SJMP Reset_Time_Minutes
+0451            483   Reset_Time_Minutes:
+0451 753300     484            MOV BCD_Time_Minutes, #0X00
+0454 1203FF     485            LCALL Update_Time_Hours
+0457 8000       486            SJMP Update_Time_Minutes_Done
+0459            487   Update_Time_Minutes_Done:
+0459 22         488            RET
+045A            489   
+045A            490   Dec_Time_Minutes:
+045A E533       491            MOV A, BCD_Time_Minutes
+045C 7008       492            JNZ Dec_Time_Minutes_Continued
+045E            493   Rewind_Time_Minutes:
+045E 753359     494            MOV BCD_Time_Minutes, #0X59
+0461 1203FF     495            LCALL Update_Time_Hours
+0464 80F3       496            SJMP Update_Time_Minutes_Done
+0466            497   Dec_Time_Minutes_Continued:
+0466 2499       498            ADD A, #0X99 ; Adding 10-Complement of -1
+0468 D4         499            DA A
+0469 F533       500            MOV BCD_Time_Minutes, A
+046B 80EC       501            SJMP Update_Time_Minutes_Done
+046D            502   
+046D            503   Update_Time_Seconds:
+046D 300106     504            JNB Init_Time_Flag, Inc_Time_Seconds
+0470 300203     505            JNB Dec_En_Flag, Inc_Time_Seconds
+0473 02048B     506            LJMP Dec_Time_Seconds
+0476            507   
+0476            508   Inc_Time_Seconds:
+0476 E534       509            MOV A, BCD_Time_Seconds
+0478 2401       510            ADD A, #1
+047A D4         511            DA A
+047B F534       512            MOV BCD_Time_Seconds, A
+047D B4600A     513            CJNE A, #0X60, Update_Time_Seconds_Done
+0480 8000       514            SJMP Reset_Time_Seconds
+0482            515   Reset_Time_Seconds:
+0482 753400     516            MOV BCD_Time_Seconds, #0X00
+0485 12043C     517            LCALL Update_Time_Minutes
+0488 8000       518            SJMP Update_Time_Seconds_Done
+048A            519   Update_Time_Seconds_Done:
+048A 22         520            RET
+048B            521   
+048B            522   Dec_Time_Seconds:
+048B E534       523            MOV A, BCD_Time_Seconds
+048D 7008       524            JNZ Dec_Time_Seconds_Continued
+048F            525   Rewind_Time_Seconds:
+048F 753459     526            MOV BCD_Time_Seconds, #0X59
+0492 12043C     527            LCALL Update_Time_Minutes
+0495 80F3       528            SJMP Update_Time_Seconds_Done
+0497            529   Dec_Time_Seconds_Continued:
+0497 2499       530            ADD A, #0X99 ; Adding 10-Complement of -1
+0499 D4         531            DA A
+049A F534       532            MOV BCD_Time_Seconds, A
+049C 80EC       533            SJMP Update_Time_Seconds_Done
+049E            534   
+049E            535   Update_Alarm_Hours:
+049E 300203     536            JNB Dec_En_Flag, Inc_Alarm_Hours
+04A1 0204C2     537            LJMP Dec_Alarm_Hours
+04A4            538   
+04A4            539   Inc_Alarm_Hours:
+04A4 E535       540            MOV A, BCD_Alarm_Hours
+04A6 2401       541            ADD A, #1
+04A8 D4         542            DA A
+04A9 F535       543            MOV BCD_Alarm_Hours, A
+04AB 9412       544            SUBB A, #0X12
+04AD 4012       545            JC Update_Alarm_Hours_Done
+04AF 7007       546            JNZ Offset_Alarm_Hours
+04B1            547   Toggle_Alarm_AMPM:
+04B1 753512     548            MOV BCD_Alarm_Hours, #0X12
+04B4 B206       549            CPL Alarm_PM_Flag
+04B6 8009       550            SJMP Update_Alarm_Hours_Done
+04B8            551   Offset_Alarm_Hours:
+04B8 E535       552            MOV A, BCD_Alarm_Hours
+04BA 9412       553            SUBB A, #0X12
+04BC D4         554            DA A
+04BD F535       555            MOV BCD_Alarm_Hours, A
+04BF 8000       556            SJMP Update_Alarm_Hours_Done
+04C1            557   Update_Alarm_Hours_Done:
+04C1 22         558            RET
+04C2            559   
+04C2            560   Dec_Alarm_Hours:
+04C2 E535       561            MOV A, BCD_Alarm_Hours
+04C4 B41207     562            CJNE A, #0X12, Dec_Alarm_Hours_Continued
+04C7            563   Rewind_Alarm_AMPM:
+04C7 753511     564            MOV BCD_Alarm_Hours, #0X11
+04CA B206       565            CPL Alarm_PM_Flag
+04CC 80F3       566            SJMP Update_Alarm_Hours_Done
+04CE            567   Dec_Alarm_Hours_Continued:
+04CE 2499       568            ADD A, #0X99 ; Adding 10-Complement of -1
+04D0 D4         569            DA A
+04D1 F535       570            MOV BCD_Alarm_Hours, A
+04D3 70EC       571            JNZ Update_Alarm_Hours_Done
+04D5            572   Rewind_Alarm_Hours:
+04D5 753512     573            MOV BCD_Alarm_Hours, #0X12
+04D8 80E7       574            SJMP Update_Alarm_Hours_Done
+04DA            575   
+04DA            576   
+04DA            577   Update_Alarm_Minutes:
+04DA 300203     578            JNB Dec_En_Flag, Inc_Alarm_Minutes
+04DD 0204F5     579            LJMP Dec_Alarm_Minutes
+04E0            580   
+04E0            581   Inc_Alarm_Minutes:
+04E0 E536       582            MOV A, BCD_Alarm_Minutes
+04E2 2401       583            ADD A, #1
+04E4 D4         584            DA A
+04E5 F536       585            MOV BCD_Alarm_Minutes, A
+04E7 B4600A     586            CJNE A, #0X60, Update_Alarm_Minutes_Done
+04EA 8000       587            SJMP Reset_Alarm_Minutes
+04EC            588   Reset_Alarm_Minutes:
+04EC 753600     589            MOV BCD_Alarm_Minutes, #0X00
+04EF 12049E     590            LCALL Update_Alarm_Hours
+04F2 8000       591            SJMP Update_Alarm_Minutes_Done
+04F4            592   Update_Alarm_Minutes_Done:
+04F4 22         593            RET
+04F5            594   
+04F5            595   Dec_Alarm_Minutes:
+04F5 E536       596            MOV A, BCD_Alarm_Minutes
+04F7 7008       597            JNZ Dec_Alarm_Minutes_Continued
+04F9            598   Rewind_Alarm_Minutes:
+04F9 753659     599            MOV BCD_Alarm_Minutes, #0X59
+04FC 12049E     600            LCALL Update_Alarm_Hours
+04FF 80F3       601            SJMP Update_Alarm_Minutes_Done
+0501            602   Dec_Alarm_Minutes_Continued:
+0501 2499       603            ADD A, #0X99 ; Adding 10-Complement of -1
+0503 D4         604            DA A
+0504 F536       605            MOV BCD_Alarm_Minutes, A
+0506 80EC       606            SJMP Update_Alarm_Minutes_Done
+0508            607   
+0508            608   ;----------------;
+0508            609   ; Enable/Disable ;
+0508            610   ;----------------;
+0508            611   Check_Alarm_En:
+0508 209111     612            JB SET_BUTTON, Check_Alarm_En_Done
+050B C002       613            push AR2
+050D 7A32       613            mov R2, #50
+050F 120038     613            lcall ?Wait_Milli_Seconds
+0512 D002       613            pop AR2
+0514 209105     614            JB SET_BUTTON, Check_Alarm_En_Done
+0517 3091FD     615            JNB SET_BUTTON, $ ; Wait for Rising Edge
+051A B203       616            CPL Alarm_En_Flag ; Toggle Alarm Enable Flag
+051C            617   Check_Alarm_En_Done:
+051C 22         618            RET
+051D            619   
+051D            620   Check_Dec_En:
+051D 208511     621            JB DEC_BUTTON, Check_Dec_En_Done
+0520 C002       622            push AR2
+0522 7A32       622            mov R2, #50
+0524 120038     622            lcall ?Wait_Milli_Seconds
+0527 D002       622            pop AR2
+0529 208505     623            JB DEC_BUTTON, Check_Dec_En_Done
+052C 3085FD     624            JNB DEC_BUTTON, $ ; Wait for Rising Edge
+052F B202       625            CPL Dec_En_Flag
+0531            626   Check_Dec_En_Done:
+0531 22         627            RET
+0532            628   END
