@@ -36,554 +36,554 @@
 0000             38   SET_BUTTON           EQU P1.0 ; Pin 15
 0000             39   HOUR_FORMAT_BUTTON   EQU P1.1 ; Pin 14
 0000             40   
-0000             41   DEC_BUTTON           EQU P0.5 ; Pin 1
-0000             42   HOURS_BUTTON         EQU P3.0 ; Pin 5
-0000             43   MINUTES_BUTTON       EQU P1.6 ; Pin 8
-0000             44   SECONDS_BUTTON       EQU P1.5 ; Pin 10
-0000             45   
-0000             46   ALARM_OUT            EQU P1.7 ; Pin 6
-0000             47   
-0000             48   ;-------------------;
-0000             49   ; Interrupt Vectors ;
-0000             50   ;-------------------;
-0000             51   ; Reset Vector
-0000             52   ORG 0X0000
-0000 0201C2      53       LJMP Main
-0003             54   
-0003             55   ; External Interrupt 0 Vector (Not Used)
-0003             56   ORG 0X0003
-0003 32          57            RETI
-0004             58   
-0004             59   ; Timer/Counter 0 Overflow Interrupt Vector
-000B             60   ORG 0X000B
-000B 020136      61            LJMP Timer0_ISR
-000E             62   
-000E             63   ; External Interrupt 1 vector (Not Used)
-0013             64   ORG 0X0013
-0013 32          65            RETI
-0014             66   
-0014             67   ; Timer/Counter 1 Overflow Interrupt Vector (Not Used)
-001B             68   ORG 0X001B
-001B 32          69            RETI
-001C             70   
-001C             71   ; Serial Port Receive/Transmit Interrupt Vector (Not Used)
-0023             72   ORG 0X0023
-0023 32          73            RETI
-0024             74   
-0024             75   ; Timer/Counter 2 Overflow Interrupt Vector
-002B             76   ORG 0X002B
-002B 020176      77            LJMP Timer2_ISR
-002E             78   
-002E             79   ; Note : Can Define Direct Access Variables Starting at 0X30 up to 0X7F in 8051.
-0030             80   DSEG AT 0X30
-0030             81   
-0030             82   Counter_1ms:       DS 2 ; Used to Determine When 1000ms has Passed
-0032             83   
-0032             84   BCD_Time_Hours: DS 1
-0033             85   BCD_Time_Minutes:  DS 1
-0034             86   BCD_Time_Seconds:  DS 1
-0035             87   
-0035             88   BCD_Alarm_Hours: DS 1
-0036             89   BCD_Alarm_Minutes: DS 1
-0037             90   
-0000             91   BSEG
-0000             92   
-0000             93   One_Second_Flag: DBIT 1 ; Set Bit In ISR After Every 1000ms
-0001             94   
-0001             95   Init_Time_Flag: DBIT 1 ; Set Bit When Time is Being Initialized
-0002             96   Dec_En_Flag: DBIT 1 ; Set Bit When Decrement Button is Toggled
-0003             97   
-0003             98   Alarm_En_Flag:   DBIT 1
-0004             99   Alarm_On_Flag:   DBIT 1
-0005            100   
-0005            101   Time_PM_Flag:    DBIT 1 ; Set Bit When Time is in PM
-0006            102   Alarm_PM_Flag:   DBIT 1 ; Set Bit When Alarm is in PM
-0007            103   Hour_Format_Flag:    DBIT 1 ; Set Bit When Time is in 24-Hour Mode
-0008            104   
-002E            105   CSEG
-002E            106   
-002E            107   LCD_RS EQU P1.3 ; Pin 12
-002E            108   LCD_E  EQU P1.4 ; Pin 11
-002E            109   LCD_D4 EQU P0.0 ; Pin 16
-002E            110   LCD_D5 EQU P0.1 ; Pin 17
-002E            111   LCD_D6 EQU P0.2 ; Pin 18
-002E            112   LCD_D7 EQU P0.3 ; Pin 19
-002E            113   
-                115   	$LIST
-00E2            117   
-00E2 54494D45   118   TIME_INIT_MSG:     DB 'TIME xx:xx:xxxx', 0, 0
+0000             41   
+0000             42   DEC_BUTTON           EQU P0.5 ; Pin 1
+0000             43   HOURS_BUTTON         EQU P1.2 ; Pin 13
+0000             44   MINUTES_BUTTON       EQU P1.6 ; Pin 8
+0000             45   SECONDS_BUTTON       EQU P3.0 ; Pin 5
+0000             46   
+0000             47   ALARM_OUT            EQU P1.7 ; Pin 6
+0000             48   
+0000             49   ;-------------------;
+0000             50   ; Interrupt Vectors ;
+0000             51   ;-------------------;
+0000             52   ; Reset Vector
+0000             53   ORG 0X0000
+0000 0201C2      54       LJMP Main
+0003             55   
+0003             56   ; External Interrupt 0 Vector (Not Used)
+0003             57   ORG 0X0003
+0003 32          58            RETI
+0004             59   
+0004             60   ; Timer/Counter 0 Overflow Interrupt Vector
+000B             61   ORG 0X000B
+000B 020136      62            LJMP Timer0_ISR
+000E             63   
+000E             64   ; External Interrupt 1 vector (Not Used)
+0013             65   ORG 0X0013
+0013 32          66            RETI
+0014             67   
+0014             68   ; Timer/Counter 1 Overflow Interrupt Vector (Not Used)
+001B             69   ORG 0X001B
+001B 32          70            RETI
+001C             71   
+001C             72   ; Serial Port Receive/Transmit Interrupt Vector (Not Used)
+0023             73   ORG 0X0023
+0023 32          74            RETI
+0024             75   
+0024             76   ; Timer/Counter 2 Overflow Interrupt Vector
+002B             77   ORG 0X002B
+002B 020176      78            LJMP Timer2_ISR
+002E             79   
+002E             80   ; Note : Can Define Direct Access Variables Starting at 0X30 up to 0X7F in 8051.
+0030             81   DSEG AT 0X30
+0030             82   
+0030             83   Counter_1ms:       DS 2 ; Used to Determine When 1000ms has Passed
+0032             84   
+0032             85   BCD_Time_Hours: DS 1
+0033             86   BCD_Time_Minutes:  DS 1
+0034             87   BCD_Time_Seconds:  DS 1
+0035             88   
+0035             89   BCD_Alarm_Hours: DS 1
+0036             90   BCD_Alarm_Minutes: DS 1
+0037             91   
+0000             92   BSEG
+0000             93   
+0000             94   One_Second_Flag: DBIT 1 ; Set Bit In ISR After Every 1000ms
+0001             95   
+0001             96   Init_Time_Flag: DBIT 1 ; Set Bit When Time is Being Initialized
+0002             97   Dec_En_Flag: DBIT 1 ; Set Bit When Decrement Button is Toggled
+0003             98   
+0003             99   Alarm_En_Flag:   DBIT 1
+0004            100   Alarm_On_Flag:   DBIT 1
+0005            101   
+0005            102   Time_PM_Flag:    DBIT 1 ; Set Bit When Time is in PM
+0006            103   Alarm_PM_Flag:   DBIT 1 ; Set Bit When Alarm is in PM
+0007            104   Hour_Format_Flag:    DBIT 1 ; Set Bit When Time is in 24-Hour Mode
+0008            105   
+002E            106   CSEG
+002E            107   
+002E            108   LCD_RS EQU P1.3 ; Pin 12
+002E            109   LCD_E  EQU P1.4 ; Pin 11
+002E            110   LCD_D4 EQU P0.0 ; Pin 16
+002E            111   LCD_D5 EQU P0.1 ; Pin 17
+002E            112   LCD_D6 EQU P0.2 ; Pin 18
+002E            113   LCD_D7 EQU P0.3 ; Pin 19
+002E            114   
+                116   	$LIST
+00E2            118   
+00E2 54494D45   119   TIME_INIT_MSG:     DB 'TIME xx:xx:xxxx', 0, 0
      2078783A
      78783A78
      78787800
      00
-00F3 414C4152   119   ALARM_INIT_MSG:    DB 'ALARM xx:xxxx', 0
+00F3 414C4152   120   ALARM_INIT_MSG:    DB 'ALARM xx:xxxx', 0
      4D207878
      3A787878
      7800
-0101 414C4152   120   ALARM_UPDATE_MSG:  DB 'ALARM', 0
+0101 414C4152   121   ALARM_UPDATE_MSG:  DB 'ALARM', 0
      4D00
-0107            121   
-0107 414D00     122   AM_MSG: DB 'AM', 0
-010A 504D00     123   PM_MSG: DB 'PM', 0
-010D            124   
-010D 20202020   125   BLANK_DISPLAY: DB '                ', 0
+0107            122   
+0107 414D00     123   AM_MSG: DB 'AM', 0
+010A 504D00     124   PM_MSG: DB 'PM', 0
+010D            125   
+010D 20202020   126   BLANK_DISPLAY: DB '                ', 0
      20202020
      20202020
      20202020
      00
-011E 3A00       126   COLON: DB ':', 0
-0120            127   
-0120            128   ;---------------------------------------;
-0120            129   ; Routine to Initialize ISR for Timer 0 ;
-0120            130   ;---------------------------------------;
-0120            131   Timer0_Init:
-0120 438E08     132            ORL CKCON, #0B0000_1000 ; Input for Timer 0 is SYSCLK/1.
-0123            133   
-0123 E589       134            MOV A, TMOD
-0125 54F0       135            ANL A, #0XF0 ; 1111_0000 Clear Bits for Timer 0
-0127 4401       136            ORL A, #0X01 ; 0000_0001 Configure Timer 0 as 16-Timer
-0129 F589       137            MOV TMOD, A
-012B            138   
-012B 758CF0     139            MOV TH0, #HIGH(TIMER0_RELOAD)
-012E 758A2C     140            MOV TL0, #LOW(TIMER0_RELOAD)
-0131            141   
-0131            142            ; Enable Timer and Interrupts
-0131 D2A9       143       SETB ET0  ; Enable Timer 0 Interrupt
-0133 D28C       144            SETB TR0  ; Start Timer 0
-0135 22         145            RET
-0136            146   
-0136            147   ;---------------------------------;
-0136            148   ; ISR for Timer 0. Set to Execute ;
-0136            149   ; Every 1/4096Hz to Generate a    ;
-0136            150   ; 2048 Hz Wave at Pin ALARM_OUT   ;
-0136            151   ;---------------------------------;
-0136            152   Timer0_ISR:
-0136            153            ; Save Registers to Stack.
-0136 C0E0       154       PUSH ACC
-0138 C0D0       155            PUSH PSW
-013A            156   
-013A 300311     157            JNB Alarm_En_Flag, No_Sound
-013D 30040E     158            JNB Alarm_On_Flag, No_Sound
-0140            159   Generate_Sound:
-0140 C28C       160            CLR TR0 ; Stop Timer 0.
-0142            161            ; Timer 0 Doesn't Have 16-Bit Auto-Reload.
-0142 758CF0     162            MOV TH0, #HIGH(TIMER0_RELOAD)
-0145 758A2C     163            MOV TL0, #LOW(TIMER0_RELOAD)
-0148 D28C       164            SETB TR0
-014A            165   
-014A B297       166            CPL ALARM_OUT ; Toggle the Alarm Out Pin
-014C 8006       167            SJMP Timer0_ISR_Done
-014E            168   No_Sound:
-014E            169            ; Timer 0 Doesn't Have 16-Bit Auto-Reload.
-014E 758CF0     170            MOV TH0, #HIGH(TIMER0_RELOAD)
-0151 758A2C     171            MOV TL0, #LOW(TIMER0_RELOAD)
-0154            172   Timer0_ISR_Done:
-0154            173            ; Restore Registers from Stack.
-0154 D0D0       174            POP PSW
-0156 D0E0       175            POP ACC
-0158            176   
-0158 32         177            RETI
-0159            178   
-0159            179   ;---------------------------------------;
-0159            180   ; Routine to Initialize ISR for Timer 2 ;
-0159            181   ;---------------------------------------;
-0159            182   Timer2_Init:
-0159 75C800     183            MOV T2CON, #0 ; Stop Timer. Autoreload Mode.
-015C            184   
-015C 75CDBF     185            MOV TH2, #HIGH(TIMER2_RELOAD)
-015F 75CC28     186            MOV TL2, #LOW(TIMER2_RELOAD)
-0162            187   
-0162            188            ; Set Reload Value
-0162 43C980     189            ORL T2MOD, #0X80 ; Enable Timer 2 Autoreload Mode
-0165 75CBBF     190            MOV RCMP2H, #HIGH(TIMER2_RELOAD)
-0168 75CA28     191            MOV RCMP2L, #LOW(TIMER2_RELOAD)
-016B            192   
-016B            193            ; Init 1ms Interrupt Counter. 16-bit Variable with Two 8-bit Parts.
-016B E4         194            CLR A
-016C F530       195            MOV Counter_1ms+0, A
-016E F531       196            MOV Counter_1ms+1, A
-0170            197   
-0170            198            ; Enable the Timer and Interrupts.
-0170 439B80     199            ORL EIE, #0X80 ; Enable Timer 2 Interrupt ET2=1
-0173 D2CA       200       SETB TR2  ; Enable Timer 2
-0175 22         201            RET
-0176            202   
-0176            203   ;-----------------;
-0176            204   ; ISR for Timer 2 ;
-0176            205   ;-----------------;
-0176            206   Timer2_ISR:
-0176 C2CF       207            CLR TF2  ; Timer 2 Doesn't Clear TF2 Automatically. Do it in the ISR.  It is Bit Addressable.
-0178 B284       208            CPL P0.4 ; Interrupt Rate with Oscilloscope Must Precisely Be A 1ms Pulse.
-017A            209   
-017A            210            ; Save Registers to Stack
-017A C0E0       211            PUSH ACC
-017C C0D0       212            PUSH PSW
-017E            213   
-017E            214            ; Increment 16-bit 1ms Counter.
-017E 0530       215            INC Counter_1ms+0 ; Increment Low 8-bits
-0180 E530       216            MOV A, Counter_1ms+0 ; Increment High 8-bits if Lower 8-bits Overflow
-0182 7002       217            JNZ Update_BCD
-0184 0531       218            INC Counter_1ms+1
-0186            219   Update_BCD:
-0186            220            ; Check if 1000ms Have Passed
-0186 E530       221            MOV A, Counter_1ms+0
-0188 B4E832     222            CJNE A, #LOW(1000), Timer2_ISR_Done ; Note : Changes Carry Flag
-018B E531       223            MOV A, Counter_1ms+1
-018D B4032D     224            CJNE A, #HIGH(1000), Timer2_ISR_Done
-0190            225   
-0190            226            ; 1000ms Have Passed. Set Flag to Inform Main Program.
-0190 D200       227            SETB One_Second_Flag
-0192            228   Check_Alarm:
-0192 30031E     229            JNB Alarm_En_Flag, No_Alarm
-0195            230   
-0195            231            ; Check if Time Hours Equals Alarm Hours
-0195 E532       232            MOV A, BCD_Time_Hours
-0197 B53519     233            CJNE A, BCD_Alarm_Hours, No_Alarm
-019A            234   
-019A            235            ; Check if Time Minutes Equals Alarm Minutes
-019A E533       236            MOV A, BCD_Time_Minutes
-019C B53614     237            CJNE A, BCD_Alarm_Minutes, No_Alarm
-019F            238   
-019F            239            ; Check AM/PM Flag
-019F E4         240            CLR A
-01A0 F5F0       241            MOV B, A
-01A2 A205       242            MOV C, Time_PM_Flag
-01A4 92F0       243            MOV B.0, C
-01A6 A206       244            MOV C, Alarm_PM_Flag
-01A8 92E0       245            MOV ACC.0, C
-01AA B5F006     246            CJNE A, B, No_Alarm
-01AD            247   BEEP:
-01AD D204       248            SETB Alarm_On_Flag
-01AF B28C       249            CPL TR0 ; Create Beep-Silence-Beep-Silence Sounds
-01B1 8002       250            SJMP Continue_ISR
-01B3            251   No_Alarm:
-01B3 C204       252            CLR Alarm_On_Flag
-01B5            253   Continue_ISR:
-01B5            254            ; Reset 1ms Counter to 0.
-01B5 E4         255            CLR A
-01B6 F530       256            MOV Counter_1ms+0, A
-01B8 F531       257            MOV Counter_1ms+1, A
-01BA 1205B9     258            LCALL Update_Time_Seconds
-01BD            259   Timer2_ISR_Done:
-01BD D0D0       260            POP PSW
-01BF D0E0       261            POP ACC
-01C1 32         262            RETI
-01C2            263   
-01C2            264   ;----------------------------------;
-01C2            265   ; Main Program. Includes Hardware  ;
-01C2            266   ; Initialization and Forever Loop. ;
-01C2            267   ;----------------------------------;
-01C2            268   Main:
-01C2            269            ; Initialization
-01C2 75817F     270       MOV SP, #0X7F
-01C5 75B100     271       MOV P0M1, #0X00
-01C8 75B200     272       MOV P0M2, #0X00
-01CB 75B300     273       MOV P1M1, #0X00
-01CE 75B400     274       MOV P1M2, #0X00
-01D1 75AD00     275       MOV P3M2, #0X00
-01D4 75AD00     276       MOV P3M2, #0X00
-01D7            277   
-01D7 120120     278       LCALL Timer0_Init
-01DA 120159     279       LCALL Timer2_Init
-01DD D2AF       280       SETB EA   ; Enable Global Interrupts
-01DF 120087     281       LCALL LCD_4BIT
-01E2            282   
-01E2            283   Init_Time:
-01E2 D201       284            SETB Init_Time_Flag
-01E4 D200       285       SETB One_Second_Flag
-01E6 C205       286            CLR Time_PM_Flag
-01E8 C202       287            CLR Dec_En_Flag
-01EA C207       288            CLR Hour_Format_Flag
-01EC            289   
-01EC C2CA       290            CLR TR2 ; Stop Timer 2
-01EE            291   
-01EE            292            ; Starting Display is 8:00:00 AM
-01EE 7408       293            MOV A, #0X08
-01F0 F532       294            MOV BCD_Time_Hours, A
-01F2            295   
-01F2 7400       296            MOV A, #0X00
-01F4 F533       297            MOV BCD_Time_Minutes, A
-01F6            298   
-01F6 7400       299            MOV A, #0X00
-01F8 F534       300            MOV BCD_Time_Seconds, A
-01FA            301   
-01FA C0E0       302            push acc
-01FC 7401       302            mov a, #1
-01FE 14         302            dec a
-01FF 1200C7     302            lcall ?Set_Cursor_1 ; Select column and row
-0202 D0E0       302            pop acc
-0204 C083       303            push dph
-0206 C082       303            push dpl
-0208 C0E0       303            push acc
-020A 9000E2     303            mov dptr, #TIME_INIT_MSG
-020D 1200BA     303            lcall ?Send_Constant_String
-0210 D0E0       303            pop acc
-0212 D082       303            pop dpl
-0214 D083       303            pop dph
-0216            304   Check_Set_Time:
-0216 209012     305            JB SET_BUTTON, Init_Time_Display
-0219 C002       306            push AR2
-021B 7A32       306            mov R2, #50
-021D 120038     306            lcall ?Wait_Milli_Seconds
-0220 D002       306            pop AR2
-0222 209006     307            JB SET_BUTTON, Init_Time_Display
-0225 3090FD     308            JNB SET_BUTTON, $ ; Wait for Rising Edge
-0228 020276     309            LJMP Init_Time_End
-022B            310   Init_Time_Display:
-022B 12067E     311            LCALL Check_Hour_Format
-022E 1202D3     312            LCALL Update_Time_Display
-0231 120669     313            LCALL Check_Dec_En
-0234            314   Init_Time_Seconds:
-0234 209512     315            JB SECONDS_BUTTON, Init_Time_Minutes
-0237 C002       316            push AR2
-0239 7A32       316            mov R2, #50
-023B 120038     316            lcall ?Wait_Milli_Seconds
-023E D002       316            pop AR2
-0240 209506     317            JB SECONDS_BUTTON, Init_Time_Minutes
-0243 3095FD     318            JNB SECONDS_BUTTON, $ ; Wait for Rising Edge
-0246 1205B9     319            LCALL Update_Time_Seconds
-0249            320   Init_Time_Minutes:
-0249 209612     321            JB MINUTES_BUTTON, Init_Time_Hours
-024C C002       322            push AR2
-024E 7A32       322            mov R2, #50
-0250 120038     322            lcall ?Wait_Milli_Seconds
-0253 D002       322            pop AR2
-0255 209606     323            JB MINUTES_BUTTON, Init_Time_Hours
-0258 3096FD     324            JNB MINUTES_BUTTON, $ ; Wait for Rising Edge
-025B 120588     325            LCALL Update_Time_Minutes
-025E            326   Init_Time_Hours:
-025E 20B012     327            JB HOURS_BUTTON, Init_Time_Loop
-0261 C002       328            push AR2
-0263 7A32       328            mov R2, #50
-0265 120038     328            lcall ?Wait_Milli_Seconds
-0268 D002       328            pop AR2
-026A 20B006     329            JB HOURS_BUTTON, Init_Time_Loop
-026D 30B0FD     330            JNB HOURS_BUTTON, $ ; Wait for Rising Edge
-0270 12054B     331            LCALL Update_Time_Hours
-0273            332   Init_Time_Loop:
-0273 020216     333            LJMP Check_Set_Time
-0276            334   Init_Time_End:
-0276 D2CA       335            SETB TR2 ; Set Timer 2
-0278 C201       336            CLR Init_Time_Flag
-027A            337   Init_Alarm:
-027A D203       338            SETB Alarm_En_Flag
-027C C204       339            CLR Alarm_On_Flag
-027E            340   
-027E            341            ; Starting Alarm is 06:00 AM
-027E C206       342            CLR Alarm_PM_Flag
-0280 7406       343            MOV A, #0X06
-0282 F535       344            MOV BCD_Alarm_Hours, A
-0284            345   
-0284 7400       346            MOV A, #0X00
-0286 F536       347            MOV BCD_Alarm_Minutes, A
-0288            348   
-0288 0202C5     349            LJMP Update_LCD_Display
-028B            350   
-028B            351   ;------------------------------------------------------;
-028B            352   ; Forever Loop to Check Buttons and Update LCD Display ;
-028B            353   ;------------------------------------------------------;
-028B            354   Check_Buttons:
-028B 8000       355            SJMP Check_Update_Alarm
-028D            356   Check_Update_Alarm:
-028D 120654     357            LCALL Check_Alarm_En
-0290 120669     358            LCALL Check_Dec_En
-0293 200303     359            JB Alarm_En_Flag, Check_Update_Alarm_Minutes
-0296 0202C5     360            LJMP Update_LCD_Display
-0299            361   Check_Update_Alarm_Minutes:
-0299 209612     362            JB MINUTES_BUTTON, Check_Update_Alarm_Hours
-029C C002       363            push AR2
-029E 7A32       363            mov R2, #50
-02A0 120038     363            lcall ?Wait_Milli_Seconds
-02A3 D002       363            pop AR2
-02A5 209606     364            JB MINUTES_BUTTON, Check_Update_Alarm_Hours
-02A8 3096FD     365            JNB MINUTES_BUTTON, $ ; Wait for Rising Edge
-02AB 120626     366            LCALL Update_Alarm_Minutes ; Increment Alarm Minutes
-02AE            367   Check_Update_Alarm_Hours:
-02AE 20B014     368            JB HOURS_BUTTON, Update_LCD_Display
-02B1 C002       369            push AR2
-02B3 7A32       369            mov R2, #50
-02B5 120038     369            lcall ?Wait_Milli_Seconds
-02B8 D002       369            pop AR2
-02BA 20B008     370            JB HOURS_BUTTON, Update_LCD_Display
-02BD 30B0FD     371            JNB HOURS_BUTTON, $ ; Wait for Rising Edge
-02C0 1205EA     372            LCALL Update_Alarm_Hours ; Increment Alarm Hours
-02C3 8000       373            SJMP Update_LCD_Display
-02C5            374   Update_LCD_Display:
-02C5 C200       375       CLR One_Second_Flag
-02C7 12067E     376            LCALL Check_Hour_Format
-02CA 1202D3     377            LCALL Update_Time_Display
-02CD 120407     378            LCALL Update_Alarm_Display
-02D0 02028B     379            LJMP Check_Buttons
-02D3            380   
-02D3            381   ;--------------------;
-02D3            382   ; Update LCD Display ;
-02D3            383   ;--------------------;
-02D3            384   Update_Time_Display:
-02D3            385            ; Display Time
-02D3 C0E0       386            push acc
-02D5 7409       386            mov a, #9
-02D7 14         386            dec a
-02D8 1200C7     386            lcall ?Set_Cursor_1 ; Select column and row
-02DB D0E0       386            pop acc
-02DD C000       387            push ar0
-02DF A833       387            mov r0, BCD_Time_Minutes
-02E1 1200CC     387            lcall ?Display_BCD
-02E4 D000       387            pop ar0
-02E6 C0E0       388            push acc
-02E8 740C       388            mov a, #12
-02EA 14         388            dec a
-02EB 1200C7     388            lcall ?Set_Cursor_1 ; Select column and row
-02EE D0E0       388            pop acc
-02F0 C000       389            push ar0
-02F2 A834       389            mov r0, BCD_Time_Seconds
-02F4 1200CC     389            lcall ?Display_BCD
-02F7 D000       389            pop ar0
-02F9            390   
-02F9 200755     391            JB Hour_Format_Flag, Update_Time_Hours_24
-02FC 8000       392            SJMP Update_Time_Hours_12
-02FE            393   Update_Time_Hours_12:
-02FE C0E0       394            push acc
-0300 7406       394            mov a, #6
-0302 14         394            dec a
-0303 1200C7     394            lcall ?Set_Cursor_1 ; Select column and row
-0306 D0E0       394            pop acc
-0308 C000       395            push ar0
-030A A832       395            mov r0, BCD_Time_Hours
-030C 1200CC     395            lcall ?Display_BCD
-030F D000       395            pop ar0
-0311 20051E     396            JB Time_PM_Flag, Update_Time_PM
-0314            397   Update_Time_AM:
-0314 C0E0       398            push acc
-0316 740E       398            mov a, #14
-0318 14         398            dec a
-0319 1200C7     398            lcall ?Set_Cursor_1 ; Select column and row
-031C D0E0       398            pop acc
-031E C083       399            push dph
-0320 C082       399            push dpl
-0322 C0E0       399            push acc
-0324 900107     399            mov dptr, #AM_MSG
-0327 1200BA     399            lcall ?Send_Constant_String
-032A D0E0       399            pop acc
-032C D082       399            pop dpl
-032E D083       399            pop dph
-0330 801E       400            SJMP Update_Time_Display_End
-0332            401   Update_Time_PM:
-0332 C0E0       402            push acc
-0334 740E       402            mov a, #14
-0336 14         402            dec a
-0337 1200C7     402            lcall ?Set_Cursor_1 ; Select column and row
-033A D0E0       402            pop acc
-033C C083       403            push dph
-033E C082       403            push dpl
-0340 C0E0       403            push acc
-0342 90010A     403            mov dptr, #PM_MSG
-0345 1200BA     403            lcall ?Send_Constant_String
-0348 D0E0       403            pop acc
-034A D082       403            pop dpl
-034C D083       403            pop dph
-034E 8000       404            SJMP Update_Time_Display_End
-0350            405   Update_Time_Display_End:
-0350 22         406            RET
-0351            407   
-0351            408   Update_Time_Hours_24:
-0351 C0E0       409            push acc
-0353 740E       409            mov a, #14
-0355 14         409            dec a
-0356 1200C7     409            lcall ?Set_Cursor_1 ; Select column and row
-0359 D0E0       409            pop acc
-035B C083       410            push dph
-035D C082       410            push dpl
-035F C0E0       410            push acc
-0361 90010D     410            mov dptr, #BLANK_DISPLAY
-0364 1200BA     410            lcall ?Send_Constant_String
-0367 D0E0       410            pop acc
-0369 D082       410            pop dpl
-036B D083       410            pop dph
-036D E532       411            MOV A, BCD_Time_Hours
-036F 20052C     412            JB Time_PM_Flag, Update_Time_Hours_24_PM
-0372            413   Update_Time_Hours_24_AM:
-0372 C0E0       414            push acc
-0374 7406       414            mov a, #6
-0376 14         414            dec a
-0377 1200C7     414            lcall ?Set_Cursor_1 ; Select column and row
-037A D0E0       414            pop acc
-037C C000       415            push ar0
-037E F8         415            mov r0, A
-037F 1200CC     415            lcall ?Display_BCD
-0382 D000       415            pop ar0
-0384 B412C9     416            CJNE A, #0X12, Update_Time_Display_End
-0387 8000       417            SJMP Update_Time_0000
-0389            418   Update_Time_0000:
-0389 C0E0       419            push acc
-038B 7406       419            mov a, #6
-038D 14         419            dec a
-038E 1200C7     419            lcall ?Set_Cursor_1 ; Select column and row
-0391 D0E0       419            pop acc
-0393 C000       420            push ar0
-0395 7800       420            mov r0, #0X00
-0397 1200CC     420            lcall ?Display_BCD
-039A D000       420            pop ar0
-039C 80B2       421            SJMP Update_Time_Display_End
-039E            422   Update_Time_Hours_24_PM:
-039E 2412       423            ADD A, #0X12
-03A0 C0E0       424            push acc
-03A2 7406       424            mov a, #6
-03A4 14         424            dec a
-03A5 1200C7     424            lcall ?Set_Cursor_1 ; Select column and row
-03A8 D0E0       424            pop acc
-03AA C000       425            push ar0
-03AC F8         425            mov r0, A
-03AD 1200CC     425            lcall ?Display_BCD
-03B0 D000       425            pop ar0
-03B2 E532       426            MOV A, BCD_Time_Hours
-03B4 8000       427            SJMP Check_Time_2000
-03B6            428   Check_Time_2000:
-03B6 B40802     429            CJNE A, #0X08, Check_Time_2100
-03B9 800A       430            SJMP Update_Time_2000
-03BB            431   Check_Time_2100:
-03BB B40902     432            CJNE A, #0X09, Check_Time_1200
-03BE 801B       433            SJMP Update_Time_2100
-03C0            434   Check_Time_1200:
-03C0 B4128D     435            CJNE A, #0X12, Update_Time_Display_End
-03C3 802C       436            SJMP Update_Time_1200
-03C5            437   Update_Time_2000:
-03C5 C0E0       438            push acc
-03C7 7406       438            mov a, #6
-03C9 14         438            dec a
-03CA 1200C7     438            lcall ?Set_Cursor_1 ; Select column and row
-03CD D0E0       438            pop acc
-03CF C000       439            push ar0
-03D1 7820       439            mov r0, #0x20
-03D3 1200CC     439            lcall ?Display_BCD
-03D6 D000       439            pop ar0
-03D8 020350     440            LJMP Update_Time_Display_End
-03DB            441   Update_Time_2100:
-03DB C0E0       442            push acc
-03DD 7406       442            mov a, #6
-03DF 14         442            dec a
-03E0 1200C7     442            lcall ?Set_Cursor_1 ; Select column and row
-03E3 D0E0       442            pop acc
-03E5 C000       443            push ar0
-03E7 7821       443            mov r0, #0x021
-03E9 1200CC     443            lcall ?Display_BCD
-03EC D000       443            pop ar0
-03EE 020350     444            LJMP Update_Time_Display_End
-03F1            445   Update_Time_1200:
-03F1 C0E0       446            push acc
-03F3 7406       446            mov a, #6
-03F5 14         446            dec a
-03F6 1200C7     446            lcall ?Set_Cursor_1 ; Select column and row
-03F9 D0E0       446            pop acc
-03FB C000       447            push ar0
-03FD 7812       447            mov r0, #0X12
-03FF 1200CC     447            lcall ?Display_BCD
-0402 D000       447            pop ar0
-0404 020350     448            LJMP Update_Time_Display_End
-0407            449   
+011E 3A00       127   COLON: DB ':', 0
+0120            128   
+0120            129   ;---------------------------------------;
+0120            130   ; Routine to Initialize ISR for Timer 0 ;
+0120            131   ;---------------------------------------;
+0120            132   Timer0_Init:
+0120 438E08     133            ORL CKCON, #0B0000_1000 ; Input for Timer 0 is SYSCLK/1.
+0123            134   
+0123 E589       135            MOV A, TMOD
+0125 54F0       136            ANL A, #0XF0 ; 1111_0000 Clear Bits for Timer 0
+0127 4401       137            ORL A, #0X01 ; 0000_0001 Configure Timer 0 as 16-Timer
+0129 F589       138            MOV TMOD, A
+012B            139   
+012B 758CF0     140            MOV TH0, #HIGH(TIMER0_RELOAD)
+012E 758A2C     141            MOV TL0, #LOW(TIMER0_RELOAD)
+0131            142   
+0131            143            ; Enable Timer and Interrupts
+0131 D2A9       144       SETB ET0  ; Enable Timer 0 Interrupt
+0133 D28C       145            SETB TR0  ; Start Timer 0
+0135 22         146            RET
+0136            147   
+0136            148   ;---------------------------------;
+0136            149   ; ISR for Timer 0. Set to Execute ;
+0136            150   ; Every 1/4096Hz to Generate a    ;
+0136            151   ; 2048 Hz Wave at Pin ALARM_OUT   ;
+0136            152   ;---------------------------------;
+0136            153   Timer0_ISR:
+0136            154            ; Save Registers to Stack.
+0136 C0E0       155       PUSH ACC
+0138 C0D0       156            PUSH PSW
+013A            157   
+013A 300311     158            JNB Alarm_En_Flag, No_Sound
+013D 30040E     159            JNB Alarm_On_Flag, No_Sound
+0140            160   Generate_Sound:
+0140 C28C       161            CLR TR0 ; Stop Timer 0.
+0142            162            ; Timer 0 Doesn't Have 16-Bit Auto-Reload.
+0142 758CF0     163            MOV TH0, #HIGH(TIMER0_RELOAD)
+0145 758A2C     164            MOV TL0, #LOW(TIMER0_RELOAD)
+0148 D28C       165            SETB TR0
+014A            166   
+014A B297       167            CPL ALARM_OUT ; Toggle the Alarm Out Pin
+014C 8006       168            SJMP Timer0_ISR_Done
+014E            169   No_Sound:
+014E            170            ; Timer 0 Doesn't Have 16-Bit Auto-Reload.
+014E 758CF0     171            MOV TH0, #HIGH(TIMER0_RELOAD)
+0151 758A2C     172            MOV TL0, #LOW(TIMER0_RELOAD)
+0154            173   Timer0_ISR_Done:
+0154            174            ; Restore Registers from Stack.
+0154 D0D0       175            POP PSW
+0156 D0E0       176            POP ACC
+0158            177   
+0158 32         178            RETI
+0159            179   
+0159            180   ;---------------------------------------;
+0159            181   ; Routine to Initialize ISR for Timer 2 ;
+0159            182   ;---------------------------------------;
+0159            183   Timer2_Init:
+0159 75C800     184            MOV T2CON, #0 ; Stop Timer. Autoreload Mode.
+015C            185   
+015C 75CDBF     186            MOV TH2, #HIGH(TIMER2_RELOAD)
+015F 75CC28     187            MOV TL2, #LOW(TIMER2_RELOAD)
+0162            188   
+0162            189            ; Set Reload Value
+0162 43C980     190            ORL T2MOD, #0X80 ; Enable Timer 2 Autoreload Mode
+0165 75CBBF     191            MOV RCMP2H, #HIGH(TIMER2_RELOAD)
+0168 75CA28     192            MOV RCMP2L, #LOW(TIMER2_RELOAD)
+016B            193   
+016B            194            ; Init 1ms Interrupt Counter. 16-bit Variable with Two 8-bit Parts.
+016B E4         195            CLR A
+016C F530       196            MOV Counter_1ms+0, A
+016E F531       197            MOV Counter_1ms+1, A
+0170            198   
+0170            199            ; Enable the Timer and Interrupts.
+0170 439B80     200            ORL EIE, #0X80 ; Enable Timer 2 Interrupt ET2=1
+0173 D2CA       201       SETB TR2  ; Enable Timer 2
+0175 22         202            RET
+0176            203   
+0176            204   ;-----------------;
+0176            205   ; ISR for Timer 2 ;
+0176            206   ;-----------------;
+0176            207   Timer2_ISR:
+0176 C2CF       208            CLR TF2  ; Timer 2 Doesn't Clear TF2 Automatically. Do it in the ISR.  It is Bit Addressable.
+0178 B284       209            CPL P0.4 ; Interrupt Rate with Oscilloscope Must Precisely Be A 1ms Pulse.
+017A            210   
+017A            211            ; Save Registers to Stack
+017A C0E0       212            PUSH ACC
+017C C0D0       213            PUSH PSW
+017E            214   
+017E            215            ; Increment 16-bit 1ms Counter.
+017E 0530       216            INC Counter_1ms+0 ; Increment Low 8-bits
+0180 E530       217            MOV A, Counter_1ms+0 ; Increment High 8-bits if Lower 8-bits Overflow
+0182 7002       218            JNZ Update_BCD
+0184 0531       219            INC Counter_1ms+1
+0186            220   Update_BCD:
+0186            221            ; Check if 1000ms Have Passed
+0186 E530       222            MOV A, Counter_1ms+0
+0188 B4E832     223            CJNE A, #LOW(1000), Timer2_ISR_Done ; Note : Changes Carry Flag
+018B E531       224            MOV A, Counter_1ms+1
+018D B4032D     225            CJNE A, #HIGH(1000), Timer2_ISR_Done
+0190            226   
+0190            227            ; 1000ms Have Passed. Set Flag to Inform Main Program.
+0190 D200       228            SETB One_Second_Flag
+0192            229   Check_Alarm:
+0192 30031E     230            JNB Alarm_En_Flag, No_Alarm
+0195            231   
+0195            232            ; Check if Time Hours Equals Alarm Hours
+0195 E532       233            MOV A, BCD_Time_Hours
+0197 B53519     234            CJNE A, BCD_Alarm_Hours, No_Alarm
+019A            235   
+019A            236            ; Check if Time Minutes Equals Alarm Minutes
+019A E533       237            MOV A, BCD_Time_Minutes
+019C B53614     238            CJNE A, BCD_Alarm_Minutes, No_Alarm
+019F            239   
+019F            240            ; Check AM/PM Flag
+019F E4         241            CLR A
+01A0 F5F0       242            MOV B, A
+01A2 A205       243            MOV C, Time_PM_Flag
+01A4 92F0       244            MOV B.0, C
+01A6 A206       245            MOV C, Alarm_PM_Flag
+01A8 92E0       246            MOV ACC.0, C
+01AA B5F006     247            CJNE A, B, No_Alarm
+01AD            248   BEEP:
+01AD D204       249            SETB Alarm_On_Flag
+01AF B28C       250            CPL TR0 ; Create Beep-Silence-Beep-Silence Sounds
+01B1 8002       251            SJMP Continue_ISR
+01B3            252   No_Alarm:
+01B3 C204       253            CLR Alarm_On_Flag
+01B5            254   Continue_ISR:
+01B5            255            ; Reset 1ms Counter to 0.
+01B5 E4         256            CLR A
+01B6 F530       257            MOV Counter_1ms+0, A
+01B8 F531       258            MOV Counter_1ms+1, A
+01BA 1205F3     259            LCALL Update_Time_Seconds
+01BD            260   Timer2_ISR_Done:
+01BD D0D0       261            POP PSW
+01BF D0E0       262            POP ACC
+01C1 32         263            RETI
+01C2            264   
+01C2            265   ;----------------------------------;
+01C2            266   ; Main Program. Includes Hardware  ;
+01C2            267   ; Initialization and Forever Loop. ;
+01C2            268   ;----------------------------------;
+01C2            269   Main:
+01C2            270            ; Initialization
+01C2 75817F     271       MOV SP, #0X7F
+01C5 75B100     272       MOV P0M1, #0X00
+01C8 75B200     273       MOV P0M2, #0X00
+01CB 75B300     274       MOV P1M1, #0X00
+01CE 75B400     275       MOV P1M2, #0X00
+01D1 75AD00     276       MOV P3M2, #0X00
+01D4 75AD00     277       MOV P3M2, #0X00
+01D7            278   
+01D7 120120     279       LCALL Timer0_Init
+01DA 120159     280       LCALL Timer2_Init
+01DD D2AF       281       SETB EA   ; Enable Global Interrupts
+01DF 120087     282       LCALL LCD_4BIT
+01E2            283   
+01E2            284   Init_Time:
+01E2 D201       285            SETB Init_Time_Flag
+01E4 D200       286       SETB One_Second_Flag
+01E6 C205       287            CLR Time_PM_Flag
+01E8 C202       288            CLR Dec_En_Flag
+01EA C207       289            CLR Hour_Format_Flag
+01EC            290   
+01EC C2CA       291            CLR TR2 ; Stop Timer 2
+01EE            292   
+01EE            293            ; Starting Display is 8:00:00 AM
+01EE 7408       294            MOV A, #0X08
+01F0 F532       295            MOV BCD_Time_Hours, A
+01F2            296   
+01F2 7400       297            MOV A, #0X00
+01F4 F533       298            MOV BCD_Time_Minutes, A
+01F6            299   
+01F6 7400       300            MOV A, #0X00
+01F8 F534       301            MOV BCD_Time_Seconds, A
+01FA            302   
+01FA C0E0       303            push acc
+01FC 7401       303            mov a, #1
+01FE 14         303            dec a
+01FF 1200C7     303            lcall ?Set_Cursor_1 ; Select column and row
+0202 D0E0       303            pop acc
+0204 C083       304            push dph
+0206 C082       304            push dpl
+0208 C0E0       304            push acc
+020A 9000E2     304            mov dptr, #TIME_INIT_MSG
+020D 1200BA     304            lcall ?Send_Constant_String
+0210 D0E0       304            pop acc
+0212 D082       304            pop dpl
+0214 D083       304            pop dph
+0216            305   Check_Set_Time:
+0216 209012     306            JB SET_BUTTON, Init_Time_Display
+0219 C002       307            push AR2
+021B 7A32       307            mov R2, #50
+021D 120038     307            lcall ?Wait_Milli_Seconds
+0220 D002       307            pop AR2
+0222 209006     308            JB SET_BUTTON, Init_Time_Display
+0225 3090FD     309            JNB SET_BUTTON, $ ; Wait for Rising Edge
+0228 020276     310            LJMP Init_Time_End
+022B            311   Init_Time_Display:
+022B 1206B8     312            LCALL Check_Hour_Format
+022E 1202D3     313            LCALL Update_Time_Display
+0231 1206A3     314            LCALL Check_Dec_En
+0234            315   Init_Time_Seconds:
+0234 20B012     316            JB SECONDS_BUTTON, Init_Time_Minutes
+0237 C002       317            push AR2
+0239 7A32       317            mov R2, #50
+023B 120038     317            lcall ?Wait_Milli_Seconds
+023E D002       317            pop AR2
+0240 20B006     318            JB SECONDS_BUTTON, Init_Time_Minutes
+0243 30B0FD     319            JNB SECONDS_BUTTON, $ ; Wait for Rising Edge
+0246 1205F3     320            LCALL Update_Time_Seconds
+0249            321   Init_Time_Minutes:
+0249 209612     322            JB MINUTES_BUTTON, Init_Time_Hours
+024C C002       323            push AR2
+024E 7A32       323            mov R2, #50
+0250 120038     323            lcall ?Wait_Milli_Seconds
+0253 D002       323            pop AR2
+0255 209606     324            JB MINUTES_BUTTON, Init_Time_Hours
+0258 3096FD     325            JNB MINUTES_BUTTON, $ ; Wait for Rising Edge
+025B 1205C2     326            LCALL Update_Time_Minutes
+025E            327   Init_Time_Hours:
+025E 209212     328            JB HOURS_BUTTON, Init_Time_Loop
+0261 C002       329            push AR2
+0263 7A32       329            mov R2, #50
+0265 120038     329            lcall ?Wait_Milli_Seconds
+0268 D002       329            pop AR2
+026A 209206     330            JB HOURS_BUTTON, Init_Time_Loop
+026D 3092FD     331            JNB HOURS_BUTTON, $ ; Wait for Rising Edge
+0270 120585     332            LCALL Update_Time_Hours
+0273            333   Init_Time_Loop:
+0273 020216     334            LJMP Check_Set_Time
+0276            335   Init_Time_End:
+0276 D2CA       336            SETB TR2 ; Set Timer 2
+0278 C201       337            CLR Init_Time_Flag
+027A            338   Init_Alarm:
+027A D203       339            SETB Alarm_En_Flag
+027C C204       340            CLR Alarm_On_Flag
+027E            341   
+027E            342            ; Starting Alarm is 06:00 AM
+027E C206       343            CLR Alarm_PM_Flag
+0280 7406       344            MOV A, #0X06
+0282 F535       345            MOV BCD_Alarm_Hours, A
+0284            346   
+0284 7400       347            MOV A, #0X00
+0286 F536       348            MOV BCD_Alarm_Minutes, A
+0288            349   
+0288 0202C5     350            LJMP Update_LCD_Display
+028B            351   
+028B            352   ;------------------------------------------------------;
+028B            353   ; Forever Loop to Check Buttons and Update LCD Display ;
+028B            354   ;------------------------------------------------------;
+028B            355   Check_Buttons:
+028B 8000       356            SJMP Check_Update_Alarm
+028D            357   Check_Update_Alarm:
+028D 12068E     358            LCALL Check_Alarm_En
+0290 1206A3     359            LCALL Check_Dec_En
+0293 200303     360            JB Alarm_En_Flag, Check_Update_Alarm_Minutes
+0296 0202C5     361            LJMP Update_LCD_Display
+0299            362   Check_Update_Alarm_Minutes:
+0299 209612     363            JB MINUTES_BUTTON, Check_Update_Alarm_Hours
+029C C002       364            push AR2
+029E 7A32       364            mov R2, #50
+02A0 120038     364            lcall ?Wait_Milli_Seconds
+02A3 D002       364            pop AR2
+02A5 209606     365            JB MINUTES_BUTTON, Check_Update_Alarm_Hours
+02A8 3096FD     366            JNB MINUTES_BUTTON, $ ; Wait for Rising Edge
+02AB 120660     367            LCALL Update_Alarm_Minutes ; Increment Alarm Minutes
+02AE            368   Check_Update_Alarm_Hours:
+02AE 209214     369            JB HOURS_BUTTON, Update_LCD_Display
+02B1 C002       370            push AR2
+02B3 7A32       370            mov R2, #50
+02B5 120038     370            lcall ?Wait_Milli_Seconds
+02B8 D002       370            pop AR2
+02BA 209208     371            JB HOURS_BUTTON, Update_LCD_Display
+02BD 3092FD     372            JNB HOURS_BUTTON, $ ; Wait for Rising Edge
+02C0 120624     373            LCALL Update_Alarm_Hours ; Increment Alarm Hours
+02C3 8000       374            SJMP Update_LCD_Display
+02C5            375   Update_LCD_Display:
+02C5 C200       376       CLR One_Second_Flag
+02C7 1206B8     377            LCALL Check_Hour_Format
+02CA 1202D3     378            LCALL Update_Time_Display
+02CD 120407     379            LCALL Update_Alarm_Display
+02D0 02028B     380            LJMP Check_Buttons
+02D3            381   
+02D3            382   ;--------------------;
+02D3            383   ; Update LCD Display ;
+02D3            384   ;--------------------;
+02D3            385   Update_Time_Display:
+02D3            386            ; Display Time
+02D3 C0E0       387            push acc
+02D5 7409       387            mov a, #9
+02D7 14         387            dec a
+02D8 1200C7     387            lcall ?Set_Cursor_1 ; Select column and row
+02DB D0E0       387            pop acc
+02DD C000       388            push ar0
+02DF A833       388            mov r0, BCD_Time_Minutes
+02E1 1200CC     388            lcall ?Display_BCD
+02E4 D000       388            pop ar0
+02E6 C0E0       389            push acc
+02E8 740C       389            mov a, #12
+02EA 14         389            dec a
+02EB 1200C7     389            lcall ?Set_Cursor_1 ; Select column and row
+02EE D0E0       389            pop acc
+02F0 C000       390            push ar0
+02F2 A834       390            mov r0, BCD_Time_Seconds
+02F4 1200CC     390            lcall ?Display_BCD
+02F7 D000       390            pop ar0
+02F9            391   
+02F9 200755     392            JB Hour_Format_Flag, Update_Time_Hours_24
+02FC 8000       393            SJMP Update_Time_Hours_12
+02FE            394   Update_Time_Hours_12:
+02FE C0E0       395            push acc
+0300 7406       395            mov a, #6
+0302 14         395            dec a
+0303 1200C7     395            lcall ?Set_Cursor_1 ; Select column and row
+0306 D0E0       395            pop acc
+0308 C000       396            push ar0
+030A A832       396            mov r0, BCD_Time_Hours
+030C 1200CC     396            lcall ?Display_BCD
+030F D000       396            pop ar0
+0311 20051E     397            JB Time_PM_Flag, Update_Time_PM
+0314            398   Update_Time_AM:
+0314 C0E0       399            push acc
+0316 740E       399            mov a, #14
+0318 14         399            dec a
+0319 1200C7     399            lcall ?Set_Cursor_1 ; Select column and row
+031C D0E0       399            pop acc
+031E C083       400            push dph
+0320 C082       400            push dpl
+0322 C0E0       400            push acc
+0324 900107     400            mov dptr, #AM_MSG
+0327 1200BA     400            lcall ?Send_Constant_String
+032A D0E0       400            pop acc
+032C D082       400            pop dpl
+032E D083       400            pop dph
+0330 801E       401            SJMP Update_Time_Display_End
+0332            402   Update_Time_PM:
+0332 C0E0       403            push acc
+0334 740E       403            mov a, #14
+0336 14         403            dec a
+0337 1200C7     403            lcall ?Set_Cursor_1 ; Select column and row
+033A D0E0       403            pop acc
+033C C083       404            push dph
+033E C082       404            push dpl
+0340 C0E0       404            push acc
+0342 90010A     404            mov dptr, #PM_MSG
+0345 1200BA     404            lcall ?Send_Constant_String
+0348 D0E0       404            pop acc
+034A D082       404            pop dpl
+034C D083       404            pop dph
+034E 8000       405            SJMP Update_Time_Display_End
+0350            406   Update_Time_Display_End:
+0350 22         407            RET
+0351            408   
+0351            409   Update_Time_Hours_24:
+0351 C0E0       410            push acc
+0353 740E       410            mov a, #14
+0355 14         410            dec a
+0356 1200C7     410            lcall ?Set_Cursor_1 ; Select column and row
+0359 D0E0       410            pop acc
+035B C083       411            push dph
+035D C082       411            push dpl
+035F C0E0       411            push acc
+0361 90010D     411            mov dptr, #BLANK_DISPLAY
+0364 1200BA     411            lcall ?Send_Constant_String
+0367 D0E0       411            pop acc
+0369 D082       411            pop dpl
+036B D083       411            pop dph
+036D E532       412            MOV A, BCD_Time_Hours
+036F 20052C     413            JB Time_PM_Flag, Update_Time_Hours_24_PM
+0372            414   Update_Time_Hours_24_AM:
+0372 C0E0       415            push acc
+0374 7406       415            mov a, #6
+0376 14         415            dec a
+0377 1200C7     415            lcall ?Set_Cursor_1 ; Select column and row
+037A D0E0       415            pop acc
+037C C000       416            push ar0
+037E F8         416            mov r0, A
+037F 1200CC     416            lcall ?Display_BCD
+0382 D000       416            pop ar0
+0384 B412C9     417            CJNE A, #0X12, Update_Time_Display_End
+0387 8000       418            SJMP Update_Time_0000
+0389            419   Update_Time_0000:
+0389 C0E0       420            push acc
+038B 7406       420            mov a, #6
+038D 14         420            dec a
+038E 1200C7     420            lcall ?Set_Cursor_1 ; Select column and row
+0391 D0E0       420            pop acc
+0393 C000       421            push ar0
+0395 7800       421            mov r0, #0X00
+0397 1200CC     421            lcall ?Display_BCD
+039A D000       421            pop ar0
+039C 80B2       422            SJMP Update_Time_Display_End
+039E            423   Update_Time_Hours_24_PM:
+039E 2412       424            ADD A, #0X12
+03A0 C0E0       425            push acc
+03A2 7406       425            mov a, #6
+03A4 14         425            dec a
+03A5 1200C7     425            lcall ?Set_Cursor_1 ; Select column and row
+03A8 D0E0       425            pop acc
+03AA C000       426            push ar0
+03AC F8         426            mov r0, A
+03AD 1200CC     426            lcall ?Display_BCD
+03B0 D000       426            pop ar0
+03B2 E532       427            MOV A, BCD_Time_Hours
+03B4 8000       428            SJMP Check_Time_2000
+03B6            429   Check_Time_2000:
+03B6 B40802     430            CJNE A, #0X08, Check_Time_2100
+03B9 800A       431            SJMP Update_Time_2000
+03BB            432   Check_Time_2100:
+03BB B40902     433            CJNE A, #0X09, Check_Time_1200
+03BE 801B       434            SJMP Update_Time_2100
+03C0            435   Check_Time_1200:
+03C0 B4128D     436            CJNE A, #0X12, Update_Time_Display_End
+03C3 802C       437            SJMP Update_Time_1200
+03C5            438   Update_Time_2000:
+03C5 C0E0       439            push acc
+03C7 7406       439            mov a, #6
+03C9 14         439            dec a
+03CA 1200C7     439            lcall ?Set_Cursor_1 ; Select column and row
+03CD D0E0       439            pop acc
+03CF C000       440            push ar0
+03D1 7820       440            mov r0, #0x20
+03D3 1200CC     440            lcall ?Display_BCD
+03D6 D000       440            pop ar0
+03D8 020350     441            LJMP Update_Time_Display_End
+03DB            442   Update_Time_2100:
+03DB C0E0       443            push acc
+03DD 7406       443            mov a, #6
+03DF 14         443            dec a
+03E0 1200C7     443            lcall ?Set_Cursor_1 ; Select column and row
+03E3 D0E0       443            pop acc
+03E5 C000       444            push ar0
+03E7 7821       444            mov r0, #0x021
+03E9 1200CC     444            lcall ?Display_BCD
+03EC D000       444            pop ar0
+03EE 020350     445            LJMP Update_Time_Display_End
+03F1            446   Update_Time_1200:
+03F1 C0E0       447            push acc
+03F3 7406       447            mov a, #6
+03F5 14         447            dec a
+03F6 1200C7     447            lcall ?Set_Cursor_1 ; Select column and row
+03F9 D0E0       447            pop acc
+03FB C000       448            push ar0
+03FD 7812       448            mov r0, #0X12
+03FF 1200CC     448            lcall ?Display_BCD
+0402 D000       448            pop ar0
+0404 020350     449            LJMP Update_Time_Display_End
 0407            450   
 0407            451   Update_Alarm_Display:
 0407 200303     452            JB Alarm_En_Flag, Update_Alarm_En_On
-040A 02052C     453            LJMP Update_Alarm_En_Off
+040A 020566     453            LJMP Update_Alarm_En_Off
 040D            454   Update_Alarm_En_On:
 040D            455            ; Display Alarm
 040D C0E0       456            push acc
@@ -709,265 +709,295 @@
 04F9 D000       492            pop ar0
 04FB 80B2       493            SJMP Update_Alarm_Display_End
 04FD            494   Update_Alarm_Hours_24_PM:
-04FD 240C       495            ADD A, #12
-04FF D4         496            DA A
-0500 C0E0       497            push acc
-0502 7407       497            mov a, #7
-0504 14         497            dec a
-0505 1200C5     497            lcall ?Set_Cursor_2 ; Select column and row
-0508 D0E0       497            pop acc
-050A C000       498            push ar0
-050C F8         498            mov r0, A
-050D 1200CC     498            lcall ?Display_BCD
-0510 D000       498            pop ar0
-0512 B4249A     499            CJNE A, #0X24, Update_Alarm_Display_End
-0515 8000       500            SJMP Update_Alarm_1200
-0517            501   Update_Alarm_1200:
-0517 C0E0       502            push acc
-0519 7407       502            mov a, #7
-051B 14         502            dec a
-051C 1200C5     502            lcall ?Set_Cursor_2 ; Select column and row
-051F D0E0       502            pop acc
-0521 C000       503            push ar0
-0523 7812       503            mov r0, #0X12
-0525 1200CC     503            lcall ?Display_BCD
-0528 D000       503            pop ar0
-052A 8083       504            SJMP Update_Alarm_Display_End
-052C            505   
-052C            506   Update_Alarm_En_Off:
-052C C0E0       507            push acc
-052E 7401       507            mov a, #1
-0530 14         507            dec a
-0531 1200C5     507            lcall ?Set_Cursor_2 ; Select column and row
-0534 D0E0       507            pop acc
-0536 C083       508            push dph
-0538 C082       508            push dpl
-053A C0E0       508            push acc
-053C 90010D     508            mov dptr, #BLANK_DISPLAY
-053F 1200BA     508            lcall ?Send_Constant_String
-0542 D0E0       508            pop acc
-0544 D082       508            pop dpl
-0546 D083       508            pop dph
-0548 0204AF     509            LJMP Update_Alarm_Display_End
-054B            510   
-054B            511   ;-------------------------------;
-054B            512   ; Update Time on LCD Display ;
-054B            513   ;-------------------------------;
-054B            514   Update_Time_Hours:
-054B 300106     515            JNB Init_Time_Flag, Inc_Time_Hours
-054E 300203     516            JNB Dec_En_Flag, Inc_Time_Hours
-0551 020570     517            LJMP Dec_Time_Hours
-0554            518   
-0554            519   Inc_Time_Hours:
-0554 E532       520            MOV A, BCD_Time_Hours
-0556 2401       521            ADD A, #1
-0558 D4         522            DA A
-0559 F532       523            MOV BCD_Time_Hours, A
-055B 9412       524            SUBB A, #0X12
-055D 4010       525            JC Update_Time_Hours_Done
-055F 7007       526            JNZ Offset_Time_Hours
-0561            527   Toggle_Time_AMPM:
-0561 753212     528            MOV BCD_Time_Hours, #0X12
-0564 B205       529            CPL Time_PM_Flag
-0566 8007       530            SJMP Update_Time_Hours_Done
-0568            531   Offset_Time_Hours:
-0568 E532       532            MOV A, BCD_Time_Hours
-056A 9412       533            SUBB A, #0X12
-056C D4         534            DA A
-056D F532       535            MOV BCD_Time_Hours, A
-056F            536   Update_Time_Hours_Done:
-056F 22         537            RET
-0570            538   
-0570            539   Dec_Time_Hours:
-0570 E532       540            MOV A, BCD_Time_Hours
-0572 B41207     541            CJNE A, #0X12, Dec_Time_Hours_Continued
-0575            542   Rewind_Time_AMPM:
-0575 753211     543            MOV BCD_Time_Hours, #0X11
-0578 B205       544            CPL Time_PM_Flag
-057A 80F3       545            SJMP Update_Time_Hours_Done
-057C            546   Dec_Time_Hours_Continued:
-057C 2499       547            ADD A, #0X99 ; Adding 10-Complement of -1
-057E D4         548            DA A
-057F F532       549            MOV BCD_Time_Hours, A
-0581 70EC       550            JNZ Update_Time_Hours_Done
-0583            551   Rewind_Time_Hours:
-0583 753212     552            MOV BCD_Time_Hours, #0X12
-0586 80E7       553            SJMP Update_Time_Hours_Done
-0588            554   
-0588            555   
-0588            556   Update_Time_Minutes:
-0588 300106     557            JNB Init_Time_Flag, Inc_Time_Minutes
-058B 300203     558            JNB Dec_En_Flag, Inc_Time_Minutes
-058E 0205A6     559            LJMP Dec_Time_Minutes
-0591            560   
-0591            561   Inc_Time_Minutes:
-0591 E533       562            MOV A, BCD_Time_Minutes
-0593 2401       563            ADD A, #1
-0595 D4         564            DA A
-0596 F533       565            MOV BCD_Time_Minutes, A
-0598 B4600A     566            CJNE A, #0X60, Update_Time_Minutes_Done
-059B 8000       567            SJMP Reset_Time_Minutes
-059D            568   Reset_Time_Minutes:
-059D 753300     569            MOV BCD_Time_Minutes, #0X00
-05A0 12054B     570            LCALL Update_Time_Hours
-05A3 8000       571            SJMP Update_Time_Minutes_Done
-05A5            572   Update_Time_Minutes_Done:
-05A5 22         573            RET
-05A6            574   
-05A6            575   Dec_Time_Minutes:
-05A6 E533       576            MOV A, BCD_Time_Minutes
-05A8 7008       577            JNZ Dec_Time_Minutes_Continued
-05AA            578   Rewind_Time_Minutes:
-05AA 753359     579            MOV BCD_Time_Minutes, #0X59
-05AD 12054B     580            LCALL Update_Time_Hours
-05B0 80F3       581            SJMP Update_Time_Minutes_Done
-05B2            582   Dec_Time_Minutes_Continued:
-05B2 2499       583            ADD A, #0X99 ; Adding 10-Complement of -1
-05B4 D4         584            DA A
-05B5 F533       585            MOV BCD_Time_Minutes, A
-05B7 80EC       586            SJMP Update_Time_Minutes_Done
-05B9            587   
-05B9            588   Update_Time_Seconds:
-05B9 300106     589            JNB Init_Time_Flag, Inc_Time_Seconds
-05BC 300203     590            JNB Dec_En_Flag, Inc_Time_Seconds
-05BF 0205D7     591            LJMP Dec_Time_Seconds
-05C2            592   
-05C2            593   Inc_Time_Seconds:
-05C2 E534       594            MOV A, BCD_Time_Seconds
-05C4 2401       595            ADD A, #1
-05C6 D4         596            DA A
-05C7 F534       597            MOV BCD_Time_Seconds, A
-05C9 B4600A     598            CJNE A, #0X60, Update_Time_Seconds_Done
-05CC 8000       599            SJMP Reset_Time_Seconds
-05CE            600   Reset_Time_Seconds:
-05CE 753400     601            MOV BCD_Time_Seconds, #0X00
-05D1 120588     602            LCALL Update_Time_Minutes
-05D4 8000       603            SJMP Update_Time_Seconds_Done
-05D6            604   Update_Time_Seconds_Done:
-05D6 22         605            RET
-05D7            606   
-05D7            607   Dec_Time_Seconds:
-05D7 E534       608            MOV A, BCD_Time_Seconds
-05D9 7008       609            JNZ Dec_Time_Seconds_Continued
-05DB            610   Rewind_Time_Seconds:
-05DB 753459     611            MOV BCD_Time_Seconds, #0X59
-05DE 120588     612            LCALL Update_Time_Minutes
-05E1 80F3       613            SJMP Update_Time_Seconds_Done
-05E3            614   Dec_Time_Seconds_Continued:
-05E3 2499       615            ADD A, #0X99 ; Adding 10-Complement of -1
-05E5 D4         616            DA A
-05E6 F534       617            MOV BCD_Time_Seconds, A
-05E8 80EC       618            SJMP Update_Time_Seconds_Done
-05EA            619   
-05EA            620   Update_Alarm_Hours:
-05EA 300203     621            JNB Dec_En_Flag, Inc_Alarm_Hours
-05ED 02060E     622            LJMP Dec_Alarm_Hours
-05F0            623   
-05F0            624   Inc_Alarm_Hours:
-05F0 E535       625            MOV A, BCD_Alarm_Hours
-05F2 2401       626            ADD A, #1
-05F4 D4         627            DA A
-05F5 F535       628            MOV BCD_Alarm_Hours, A
-05F7 9412       629            SUBB A, #0X12
-05F9 4012       630            JC Update_Alarm_Hours_Done
-05FB 7007       631            JNZ Offset_Alarm_Hours
-05FD            632   Toggle_Alarm_AMPM:
-05FD 753512     633            MOV BCD_Alarm_Hours, #0X12
-0600 B206       634            CPL Alarm_PM_Flag
-0602 8009       635            SJMP Update_Alarm_Hours_Done
-0604            636   Offset_Alarm_Hours:
-0604 E535       637            MOV A, BCD_Alarm_Hours
-0606 9412       638            SUBB A, #0X12
-0608 D4         639            DA A
-0609 F535       640            MOV BCD_Alarm_Hours, A
-060B 8000       641            SJMP Update_Alarm_Hours_Done
-060D            642   Update_Alarm_Hours_Done:
-060D 22         643            RET
-060E            644   
-060E            645   Dec_Alarm_Hours:
-060E E535       646            MOV A, BCD_Alarm_Hours
-0610 B41207     647            CJNE A, #0X12, Dec_Alarm_Hours_Continued
-0613            648   Rewind_Alarm_AMPM:
-0613 753511     649            MOV BCD_Alarm_Hours, #0X11
-0616 B206       650            CPL Alarm_PM_Flag
-0618 80F3       651            SJMP Update_Alarm_Hours_Done
-061A            652   Dec_Alarm_Hours_Continued:
-061A 2499       653            ADD A, #0X99 ; Adding 10-Complement of -1
-061C D4         654            DA A
-061D F535       655            MOV BCD_Alarm_Hours, A
-061F 70EC       656            JNZ Update_Alarm_Hours_Done
-0621            657   Rewind_Alarm_Hours:
-0621 753512     658            MOV BCD_Alarm_Hours, #0X12
-0624 80E7       659            SJMP Update_Alarm_Hours_Done
-0626            660   
-0626            661   
-0626            662   Update_Alarm_Minutes:
-0626 300203     663            JNB Dec_En_Flag, Inc_Alarm_Minutes
-0629 020641     664            LJMP Dec_Alarm_Minutes
-062C            665   
-062C            666   Inc_Alarm_Minutes:
-062C E536       667            MOV A, BCD_Alarm_Minutes
-062E 2401       668            ADD A, #1
-0630 D4         669            DA A
-0631 F536       670            MOV BCD_Alarm_Minutes, A
-0633 B4600A     671            CJNE A, #0X60, Update_Alarm_Minutes_Done
-0636 8000       672            SJMP Reset_Alarm_Minutes
-0638            673   Reset_Alarm_Minutes:
-0638 753600     674            MOV BCD_Alarm_Minutes, #0X00
-063B 1205EA     675            LCALL Update_Alarm_Hours
-063E 8000       676            SJMP Update_Alarm_Minutes_Done
-0640            677   Update_Alarm_Minutes_Done:
-0640 22         678            RET
-0641            679   
-0641            680   Dec_Alarm_Minutes:
-0641 E536       681            MOV A, BCD_Alarm_Minutes
-0643 7008       682            JNZ Dec_Alarm_Minutes_Continued
-0645            683   Rewind_Alarm_Minutes:
-0645 753659     684            MOV BCD_Alarm_Minutes, #0X59
-0648 1205EA     685            LCALL Update_Alarm_Hours
-064B 80F3       686            SJMP Update_Alarm_Minutes_Done
-064D            687   Dec_Alarm_Minutes_Continued:
-064D 2499       688            ADD A, #0X99 ; Adding 10-Complement of -1
-064F D4         689            DA A
-0650 F536       690            MOV BCD_Alarm_Minutes, A
-0652 80EC       691            SJMP Update_Alarm_Minutes_Done
-0654            692   
-0654            693   ;----------------;
-0654            694   ; Enable/Disable ;
-0654            695   ;----------------;
-0654            696   Check_Alarm_En:
-0654 209011     697            JB SET_BUTTON, Check_Alarm_En_Done
-0657 C002       698            push AR2
-0659 7A32       698            mov R2, #50
-065B 120038     698            lcall ?Wait_Milli_Seconds
-065E D002       698            pop AR2
-0660 209005     699            JB SET_BUTTON, Check_Alarm_En_Done
-0663 3090FD     700            JNB SET_BUTTON, $ ; Wait for Rising Edge
-0666 B203       701            CPL Alarm_En_Flag ; Toggle Alarm Enable Flag
-0668            702   Check_Alarm_En_Done:
-0668 22         703            RET
-0669            704   
-0669            705   Check_Dec_En:
-0669 208511     706            JB DEC_BUTTON, Check_Dec_En_Done
-066C C002       707            push AR2
-066E 7A32       707            mov R2, #50
-0670 120038     707            lcall ?Wait_Milli_Seconds
-0673 D002       707            pop AR2
-0675 208505     708            JB DEC_BUTTON, Check_Dec_En_Done
-0678 3085FD     709            JNB DEC_BUTTON, $ ; Wait for Rising Edge
-067B B202       710            CPL Dec_En_Flag
-067D            711   Check_Dec_En_Done:
-067D 22         712            RET
-067E            713   
-067E            714   Check_Hour_Format:
-067E 209111     715            JB HOUR_FORMAT_BUTTON, Check_Hour_Format_Done
-0681 C002       716            push AR2
-0683 7A32       716            mov R2, #50
-0685 120038     716            lcall ?Wait_Milli_Seconds
-0688 D002       716            pop AR2
-068A 209105     717            JB HOUR_FORMAT_BUTTON, Check_Hour_Format_Done
-068D 3091FD     718            JNB HOUR_FORMAT_BUTTON, $ ; Wait for Rising Edge
-0690 B207       719            CPL Hour_Format_Flag
-0692            720   Check_Hour_Format_Done:
-0692 22         721            RET
-0693            722   END
+04FD 2412       495            ADD A, #0X12
+04FF C0E0       496            push acc
+0501 7407       496            mov a, #7
+0503 14         496            dec a
+0504 1200C5     496            lcall ?Set_Cursor_2 ; Select column and row
+0507 D0E0       496            pop acc
+0509 C000       497            push ar0
+050B F8         497            mov r0, A
+050C 1200CC     497            lcall ?Display_BCD
+050F D000       497            pop ar0
+0511 E535       498            MOV A, BCD_Alarm_Hours
+0513 8000       499            SJMP Check_Alarm_2000
+0515            500   Check_Alarm_2000:
+0515 B40802     501            CJNE A, #0X08, Check_Alarm_2100
+0518 800A       502            SJMP Update_Alarm_2000
+051A            503   Check_Alarm_2100:
+051A B40902     504            CJNE A, #0X09, Check_Alarm_1200
+051D 801B       505            SJMP Update_Alarm_2100
+051F            506   Check_Alarm_1200:
+051F B4128D     507            CJNE A, #0X12, Update_Alarm_Display_End
+0522 802C       508            SJMP Update_Alarm_1200
+0524            509   Update_Alarm_2000:
+0524 C0E0       510            push acc
+0526 7407       510            mov a, #7
+0528 14         510            dec a
+0529 1200C5     510            lcall ?Set_Cursor_2 ; Select column and row
+052C D0E0       510            pop acc
+052E C000       511            push ar0
+0530 7820       511            mov r0, #0x20
+0532 1200CC     511            lcall ?Display_BCD
+0535 D000       511            pop ar0
+0537 0204AF     512            LJMP Update_Alarm_Display_End
+053A            513   Update_Alarm_2100:
+053A C0E0       514            push acc
+053C 7407       514            mov a, #7
+053E 14         514            dec a
+053F 1200C5     514            lcall ?Set_Cursor_2 ; Select column and row
+0542 D0E0       514            pop acc
+0544 C000       515            push ar0
+0546 7821       515            mov r0, #0x021
+0548 1200CC     515            lcall ?Display_BCD
+054B D000       515            pop ar0
+054D 0204AF     516            LJMP Update_Alarm_Display_End
+0550            517   Update_Alarm_1200:
+0550 C0E0       518            push acc
+0552 7407       518            mov a, #7
+0554 14         518            dec a
+0555 1200C5     518            lcall ?Set_Cursor_2 ; Select column and row
+0558 D0E0       518            pop acc
+055A C000       519            push ar0
+055C 7812       519            mov r0, #0X12
+055E 1200CC     519            lcall ?Display_BCD
+0561 D000       519            pop ar0
+0563 0204AF     520            LJMP Update_Alarm_Display_End
+0566            521   
+0566            522   Update_Alarm_En_Off:
+0566 C0E0       523            push acc
+0568 7401       523            mov a, #1
+056A 14         523            dec a
+056B 1200C5     523            lcall ?Set_Cursor_2 ; Select column and row
+056E D0E0       523            pop acc
+0570 C083       524            push dph
+0572 C082       524            push dpl
+0574 C0E0       524            push acc
+0576 90010D     524            mov dptr, #BLANK_DISPLAY
+0579 1200BA     524            lcall ?Send_Constant_String
+057C D0E0       524            pop acc
+057E D082       524            pop dpl
+0580 D083       524            pop dph
+0582 0204AF     525            LJMP Update_Alarm_Display_End
+0585            526   
+0585            527   ;-------------------------------;
+0585            528   ; Update Time on LCD Display ;
+0585            529   ;-------------------------------;
+0585            530   Update_Time_Hours:
+0585 300106     531            JNB Init_Time_Flag, Inc_Time_Hours
+0588 300203     532            JNB Dec_En_Flag, Inc_Time_Hours
+058B 0205AA     533            LJMP Dec_Time_Hours
+058E            534   
+058E            535   Inc_Time_Hours:
+058E E532       536            MOV A, BCD_Time_Hours
+0590 2401       537            ADD A, #1
+0592 D4         538            DA A
+0593 F532       539            MOV BCD_Time_Hours, A
+0595 9412       540            SUBB A, #0X12
+0597 4010       541            JC Update_Time_Hours_Done
+0599 7007       542            JNZ Offset_Time_Hours
+059B            543   Toggle_Time_AMPM:
+059B 753212     544            MOV BCD_Time_Hours, #0X12
+059E B205       545            CPL Time_PM_Flag
+05A0 8007       546            SJMP Update_Time_Hours_Done
+05A2            547   Offset_Time_Hours:
+05A2 E532       548            MOV A, BCD_Time_Hours
+05A4 9412       549            SUBB A, #0X12
+05A6 D4         550            DA A
+05A7 F532       551            MOV BCD_Time_Hours, A
+05A9            552   Update_Time_Hours_Done:
+05A9 22         553            RET
+05AA            554   
+05AA            555   Dec_Time_Hours:
+05AA E532       556            MOV A, BCD_Time_Hours
+05AC B41207     557            CJNE A, #0X12, Dec_Time_Hours_Continued
+05AF            558   Rewind_Time_AMPM:
+05AF 753211     559            MOV BCD_Time_Hours, #0X11
+05B2 B205       560            CPL Time_PM_Flag
+05B4 80F3       561            SJMP Update_Time_Hours_Done
+05B6            562   Dec_Time_Hours_Continued:
+05B6 2499       563            ADD A, #0X99 ; Adding 10-Complement of -1
+05B8 D4         564            DA A
+05B9 F532       565            MOV BCD_Time_Hours, A
+05BB 70EC       566            JNZ Update_Time_Hours_Done
+05BD            567   Rewind_Time_Hours:
+05BD 753212     568            MOV BCD_Time_Hours, #0X12
+05C0 80E7       569            SJMP Update_Time_Hours_Done
+05C2            570   
+05C2            571   
+05C2            572   Update_Time_Minutes:
+05C2 300106     573            JNB Init_Time_Flag, Inc_Time_Minutes
+05C5 300203     574            JNB Dec_En_Flag, Inc_Time_Minutes
+05C8 0205E0     575            LJMP Dec_Time_Minutes
+05CB            576   
+05CB            577   Inc_Time_Minutes:
+05CB E533       578            MOV A, BCD_Time_Minutes
+05CD 2401       579            ADD A, #1
+05CF D4         580            DA A
+05D0 F533       581            MOV BCD_Time_Minutes, A
+05D2 B4600A     582            CJNE A, #0X60, Update_Time_Minutes_Done
+05D5 8000       583            SJMP Reset_Time_Minutes
+05D7            584   Reset_Time_Minutes:
+05D7 753300     585            MOV BCD_Time_Minutes, #0X00
+05DA 120585     586            LCALL Update_Time_Hours
+05DD 8000       587            SJMP Update_Time_Minutes_Done
+05DF            588   Update_Time_Minutes_Done:
+05DF 22         589            RET
+05E0            590   
+05E0            591   Dec_Time_Minutes:
+05E0 E533       592            MOV A, BCD_Time_Minutes
+05E2 7008       593            JNZ Dec_Time_Minutes_Continued
+05E4            594   Rewind_Time_Minutes:
+05E4 753359     595            MOV BCD_Time_Minutes, #0X59
+05E7 120585     596            LCALL Update_Time_Hours
+05EA 80F3       597            SJMP Update_Time_Minutes_Done
+05EC            598   Dec_Time_Minutes_Continued:
+05EC 2499       599            ADD A, #0X99 ; Adding 10-Complement of -1
+05EE D4         600            DA A
+05EF F533       601            MOV BCD_Time_Minutes, A
+05F1 80EC       602            SJMP Update_Time_Minutes_Done
+05F3            603   
+05F3            604   Update_Time_Seconds:
+05F3 300106     605            JNB Init_Time_Flag, Inc_Time_Seconds
+05F6 300203     606            JNB Dec_En_Flag, Inc_Time_Seconds
+05F9 020611     607            LJMP Dec_Time_Seconds
+05FC            608   
+05FC            609   Inc_Time_Seconds:
+05FC E534       610            MOV A, BCD_Time_Seconds
+05FE 2401       611            ADD A, #1
+0600 D4         612            DA A
+0601 F534       613            MOV BCD_Time_Seconds, A
+0603 B4600A     614            CJNE A, #0X60, Update_Time_Seconds_Done
+0606 8000       615            SJMP Reset_Time_Seconds
+0608            616   Reset_Time_Seconds:
+0608 753400     617            MOV BCD_Time_Seconds, #0X00
+060B 1205C2     618            LCALL Update_Time_Minutes
+060E 8000       619            SJMP Update_Time_Seconds_Done
+0610            620   Update_Time_Seconds_Done:
+0610 22         621            RET
+0611            622   
+0611            623   Dec_Time_Seconds:
+0611 E534       624            MOV A, BCD_Time_Seconds
+0613 7008       625            JNZ Dec_Time_Seconds_Continued
+0615            626   Rewind_Time_Seconds:
+0615 753459     627            MOV BCD_Time_Seconds, #0X59
+0618 1205C2     628            LCALL Update_Time_Minutes
+061B 80F3       629            SJMP Update_Time_Seconds_Done
+061D            630   Dec_Time_Seconds_Continued:
+061D 2499       631            ADD A, #0X99 ; Adding 10-Complement of -1
+061F D4         632            DA A
+0620 F534       633            MOV BCD_Time_Seconds, A
+0622 80EC       634            SJMP Update_Time_Seconds_Done
+0624            635   
+0624            636   Update_Alarm_Hours:
+0624 300203     637            JNB Dec_En_Flag, Inc_Alarm_Hours
+0627 020648     638            LJMP Dec_Alarm_Hours
+062A            639   
+062A            640   Inc_Alarm_Hours:
+062A E535       641            MOV A, BCD_Alarm_Hours
+062C 2401       642            ADD A, #1
+062E D4         643            DA A
+062F F535       644            MOV BCD_Alarm_Hours, A
+0631 9412       645            SUBB A, #0X12
+0633 4012       646            JC Update_Alarm_Hours_Done
+0635 7007       647            JNZ Offset_Alarm_Hours
+0637            648   Toggle_Alarm_AMPM:
+0637 753512     649            MOV BCD_Alarm_Hours, #0X12
+063A B206       650            CPL Alarm_PM_Flag
+063C 8009       651            SJMP Update_Alarm_Hours_Done
+063E            652   Offset_Alarm_Hours:
+063E E535       653            MOV A, BCD_Alarm_Hours
+0640 9412       654            SUBB A, #0X12
+0642 D4         655            DA A
+0643 F535       656            MOV BCD_Alarm_Hours, A
+0645 8000       657            SJMP Update_Alarm_Hours_Done
+0647            658   Update_Alarm_Hours_Done:
+0647 22         659            RET
+0648            660   
+0648            661   Dec_Alarm_Hours:
+0648 E535       662            MOV A, BCD_Alarm_Hours
+064A B41207     663            CJNE A, #0X12, Dec_Alarm_Hours_Continued
+064D            664   Rewind_Alarm_AMPM:
+064D 753511     665            MOV BCD_Alarm_Hours, #0X11
+0650 B206       666            CPL Alarm_PM_Flag
+0652 80F3       667            SJMP Update_Alarm_Hours_Done
+0654            668   Dec_Alarm_Hours_Continued:
+0654 2499       669            ADD A, #0X99 ; Adding 10-Complement of -1
+0656 D4         670            DA A
+0657 F535       671            MOV BCD_Alarm_Hours, A
+0659 70EC       672            JNZ Update_Alarm_Hours_Done
+065B            673   Rewind_Alarm_Hours:
+065B 753512     674            MOV BCD_Alarm_Hours, #0X12
+065E 80E7       675            SJMP Update_Alarm_Hours_Done
+0660            676   
+0660            677   
+0660            678   Update_Alarm_Minutes:
+0660 300203     679            JNB Dec_En_Flag, Inc_Alarm_Minutes
+0663 02067B     680            LJMP Dec_Alarm_Minutes
+0666            681   
+0666            682   Inc_Alarm_Minutes:
+0666 E536       683            MOV A, BCD_Alarm_Minutes
+0668 2401       684            ADD A, #1
+066A D4         685            DA A
+066B F536       686            MOV BCD_Alarm_Minutes, A
+066D B4600A     687            CJNE A, #0X60, Update_Alarm_Minutes_Done
+0670 8000       688            SJMP Reset_Alarm_Minutes
+0672            689   Reset_Alarm_Minutes:
+0672 753600     690            MOV BCD_Alarm_Minutes, #0X00
+0675 120624     691            LCALL Update_Alarm_Hours
+0678 8000       692            SJMP Update_Alarm_Minutes_Done
+067A            693   Update_Alarm_Minutes_Done:
+067A 22         694            RET
+067B            695   
+067B            696   Dec_Alarm_Minutes:
+067B E536       697            MOV A, BCD_Alarm_Minutes
+067D 7008       698            JNZ Dec_Alarm_Minutes_Continued
+067F            699   Rewind_Alarm_Minutes:
+067F 753659     700            MOV BCD_Alarm_Minutes, #0X59
+0682 120624     701            LCALL Update_Alarm_Hours
+0685 80F3       702            SJMP Update_Alarm_Minutes_Done
+0687            703   Dec_Alarm_Minutes_Continued:
+0687 2499       704            ADD A, #0X99 ; Adding 10-Complement of -1
+0689 D4         705            DA A
+068A F536       706            MOV BCD_Alarm_Minutes, A
+068C 80EC       707            SJMP Update_Alarm_Minutes_Done
+068E            708   
+068E            709   ;----------------;
+068E            710   ; Enable/Disable ;
+068E            711   ;----------------;
+068E            712   Check_Alarm_En:
+068E 209011     713            JB SET_BUTTON, Check_Alarm_En_Done
+0691 C002       714            push AR2
+0693 7A32       714            mov R2, #50
+0695 120038     714            lcall ?Wait_Milli_Seconds
+0698 D002       714            pop AR2
+069A 209005     715            JB SET_BUTTON, Check_Alarm_En_Done
+069D 3090FD     716            JNB SET_BUTTON, $ ; Wait for Rising Edge
+06A0 B203       717            CPL Alarm_En_Flag ; Toggle Alarm Enable Flag
+06A2            718   Check_Alarm_En_Done:
+06A2 22         719            RET
+06A3            720   
+06A3            721   Check_Dec_En:
+06A3 208511     722            JB DEC_BUTTON, Check_Dec_En_Done
+06A6 C002       723            push AR2
+06A8 7A32       723            mov R2, #50
+06AA 120038     723            lcall ?Wait_Milli_Seconds
+06AD D002       723            pop AR2
+06AF 208505     724            JB DEC_BUTTON, Check_Dec_En_Done
+06B2 3085FD     725            JNB DEC_BUTTON, $ ; Wait for Rising Edge
+06B5 B202       726            CPL Dec_En_Flag
+06B7            727   Check_Dec_En_Done:
+06B7 22         728            RET
+06B8            729   
+06B8            730   Check_Hour_Format:
+06B8 209111     731            JB HOUR_FORMAT_BUTTON, Check_Hour_Format_Done
+06BB C002       732            push AR2
+06BD 7A32       732            mov R2, #50
+06BF 120038     732            lcall ?Wait_Milli_Seconds
+06C2 D002       732            pop AR2
+06C4 209105     733            JB HOUR_FORMAT_BUTTON, Check_Hour_Format_Done
+06C7 3091FD     734            JNB HOUR_FORMAT_BUTTON, $ ; Wait for Rising Edge
+06CA B207       735            CPL Hour_Format_Flag
+06CC            736   Check_Hour_Format_Done:
+06CC 22         737            RET
+06CD            738   END

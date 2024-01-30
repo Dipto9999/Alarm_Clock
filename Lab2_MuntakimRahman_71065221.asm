@@ -38,10 +38,11 @@ TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 SET_BUTTON           EQU P1.0 ; Pin 15
 HOUR_FORMAT_BUTTON   EQU P1.1 ; Pin 14
 
+
 DEC_BUTTON           EQU P0.5 ; Pin 1
-HOURS_BUTTON         EQU P3.0 ; Pin 5
+HOURS_BUTTON         EQU P1.2 ; Pin 13
 MINUTES_BUTTON       EQU P1.6 ; Pin 8
-SECONDS_BUTTON       EQU P1.5 ; Pin 10
+SECONDS_BUTTON       EQU P3.0 ; Pin 5
 
 ALARM_OUT            EQU P1.7 ; Pin 6
 
@@ -491,16 +492,32 @@ Update_Alarm_0000:
 	Display_BCD(#0X00)
 	SJMP Update_Alarm_Display_End
 Update_Alarm_Hours_24_PM:
-	ADD A, #12
-	DA A
+	ADD A, #0X12
 	Set_Cursor(2, 7)
 	Display_BCD(A)
-	CJNE A, #0X24, Update_Alarm_Display_End
+	MOV A, BCD_Alarm_Hours
+	SJMP Check_Alarm_2000
+Check_Alarm_2000:
+	CJNE A, #0X08, Check_Alarm_2100
+	SJMP Update_Alarm_2000
+Check_Alarm_2100:
+	CJNE A, #0X09, Check_Alarm_1200
+	SJMP Update_Alarm_2100
+Check_Alarm_1200:
+	CJNE A, #0X12, Update_Alarm_Display_End
 	SJMP Update_Alarm_1200
+Update_Alarm_2000:
+	Set_Cursor(2, 7)
+	Display_BCD(#0x20)
+	LJMP Update_Alarm_Display_End
+Update_Alarm_2100:
+	Set_Cursor(2, 7)
+	Display_BCD(#0x021)
+	LJMP Update_Alarm_Display_End
 Update_Alarm_1200:
 	Set_Cursor(2, 7)
 	Display_BCD(#0X12)
-	SJMP Update_Alarm_Display_End
+	LJMP Update_Alarm_Display_End
 
 Update_Alarm_En_Off:
 	Set_Cursor(2, 1)
