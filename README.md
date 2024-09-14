@@ -60,6 +60,8 @@ The build tasks in the [`.vscode`](Firmware/.vscode/tasks.json) file were set up
 
 I have uploaded the Demo on <a href="https://youtu.be/p5Kv5WFh1MI?si=RrNQxbT8ROXKCoxP" target="_blank">Youtube</a>.
 
+https://github.com/user-attachments/assets/2aec9b11-f9bf-4617-bc0e-256b9d96d5b6
+
 ## Credit
 
 This was completed as part of the <b>ELEC 291 - Design Studio</b> project course in the <b>The University of British Columbia Electrical and Computer Engineering</b> undergraduate program. I received tremendous support and guidance from Dr. Jesus Calvino-Fraga.
