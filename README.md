@@ -23,18 +23,18 @@ This was built with the following electronic kit equipment:
 
 * **N76E003** microcontroller to power and control the circuit.
 * **CEM-1203** magnetic buzzer transducter, **FQU13N06LS** MOSFET and **1N4148** diode for the speaker.
-* **CM-S01602DTR/M LCD** for the time/alarm display
-* pushbuttons to change the program settings.
+* **CM-S01602DTR/M LCD** for the time/alarm display.
+* Pushbuttons to change the program settings.
 
 ## Firmware
 
-This was implemented in **8051 ASM** for the **N76E003** microcontroller. The program consisted of an `main` function loop to receive user input (i.e. via pushbuttons) and update the **LCD** display. **Interrupt Service Routines (ISR)** were used to implement the underlying timer and alarm functionality.
+This was implemented in **8051 ASM** for the **N76E003** microcontroller. The program consisted of a `main` loop to receive user input (i.e. via pushbuttons) and update the **LCD** display. **Interrupt Service Routines (ISR)** were used to implement the underlying timer and alarm functionality.
 
 ### Interrupts
 
-`Timer2_ISR` was used to update the time and check if the alarm should be enabled, whereas `Timer0_ISR` generated the square wave for the speaker.
+`Timer2_ISR` updated the time and checked if the alarm should be enabled. It asynchronously wrote to the `BCD_Time_` and `BCD_Alarm_` *1 byte* defined spaces to share data with the `Update_LCD_Display` function in the `main` program.
 
-The `Timer2_ISR` asynchornously wrote to the `BCD_Time_` and `BCD_Alarm` *1 byte* defined spaces to share data with the `main` program. These were synchronously read by the `Update_LCD_Display` function.
+`Timer0_ISR` generated the square wave for the speaker.
 
 <i>Note that **LCD** functionality was required to be synchronous due to the high latency and lower priority of operation.</i>
 
