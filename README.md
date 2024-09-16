@@ -58,7 +58,7 @@ The build tasks in the [`.vscode`](Firmware/.vscode/tasks.json) file were set up
 
 ## Demonstration
 
-I have uploaded the Demo on <a href="https://youtu.be/p5Kv5WFh1MI?si=RrNQxbT8ROXKCoxP" target="_blank">Youtube</a>.
+I have uploaded the Demo on <a href="https://youtu.be/p5Kv5WFh1MI?si=RrNQxbT8ROXKCoxP" target="_blank">Youtube</a> and have embedded a low resolution compressed version below.
 
 https://github.com/user-attachments/assets/2aec9b11-f9bf-4617-bc0e-256b9d96d5b6
 
